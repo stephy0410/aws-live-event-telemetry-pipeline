@@ -27,6 +27,12 @@ variable "name" {
   }
 }
 
+variable "academy_compat" {
+  description = "AWS Academy's policies deny two calls the Terraform AWS provider makes unconditionally: kinesis:IncreaseStreamRetentionPeriod (on every new stream) and s3:GetBucketObjectLockConfiguration (on every bucket read). true = create the stream and the data lake bucket with the AWS CLI (scripts/academy/) instead. Set false in a regular AWS account."
+  type        = bool
+  default     = true
+}
+
 variable "lambda_role_name" {
   description = "Existing IAM role every Lambda (and Firehose) runs as. AWS Academy accounts cannot create roles, so this is the pre-provisioned LabRole."
   type        = string
@@ -130,9 +136,9 @@ variable "alert_email" {
 # --- Time-series store: Amazon Timestream (live Grafana dashboard) ---
 
 variable "enable_timestream" {
-  description = "Write every reading to Amazon Timestream for LiveAnalytics. AWS closed LiveAnalytics to new customers on 2025-06-20; if your account gets an access error, set false (Grafana keeps its CloudWatch and Redshift dashboards)."
+  description = "Write every reading to Amazon Timestream for LiveAnalytics and add the live Grafana dashboard. Off by default: AWS Academy's lab policy denies every timestream:* action (verified 2026-10-13), and AWS closed LiveAnalytics to new customers on 2025-06-20. Set true in an account that has access."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "timestream_memory_hours" {
@@ -152,12 +158,13 @@ variable "timestream_magnetic_days" {
 variable "redshift_mode" {
   description = <<-EOT
     Where the warehouse loader writes per-minute aggregates:
-      serverless  - Redshift Serverless (default): compute is billed only while queries run
-      provisioned - a single-node cluster of redshift_node_type, billed every hour it exists
+      provisioned - a single-node cluster of redshift_node_type (default: the only option AWS
+                    Academy allows), billed every hour it exists
+      serverless  - Redshift Serverless: compute billed only while queries run (denied in AWS Academy)
       off         - no warehouse
   EOT
   type        = string
-  default     = "serverless"
+  default     = "provisioned"
 
   validation {
     condition     = contains(["serverless", "provisioned", "off"], var.redshift_mode)

@@ -180,8 +180,9 @@ warehouse_panels = [
     stat("Rows in the warehouse", 6, 0, 6, rs_target("SELECT COUNT(*) AS rows_total FROM telemetry_minute"), RS, unit="short",
          desc="One row per minute, event, zone and metric per load", color=IVORY),
     stat("Events registered", 12, 0, 6, rs_target("SELECT COUNT(*) AS events FROM events"), RS, color=IVORY),
-    stat("Last load", 18, 0, 6, rs_target("SELECT MAX(loaded_at) AS last_load FROM telemetry_minute"), RS, unit="dateTimeFromNow",
-         desc="Loads arrive in micro-batches, every few minutes"),
+    # Stat panels only reduce numbers, so the timestamp goes out as epoch milliseconds.
+    stat("Last load", 18, 0, 6, rs_target("SELECT EXTRACT(EPOCH FROM MAX(loaded_at))::BIGINT * 1000 AS last_load FROM telemetry_minute"), RS,
+         unit="dateTimeFromNow", desc="Loads arrive in micro-batches, every few minutes"),
     panel("timeseries", "Readings per minute by event type", 0, 4, 24, 8,
           [rs_target("""SELECT minute_ts AS time, COALESCE(event_type, 'unregistered') AS event_type, SUM(readings) AS readings
 FROM event_metrics_minute

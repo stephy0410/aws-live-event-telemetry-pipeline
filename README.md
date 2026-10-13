@@ -4,7 +4,7 @@ Real-time streaming pipeline for **EventOps**, an event-planning SaaS for weddin
 
 - live state in **DynamoDB** (NoSQL), behind a planner-facing web app
 - alerts on an **SNS topic**, buffered in **SQS**, stored by a worker
-- a time series in **Amazon Timestream** and micro-batches in **Amazon Redshift**, behind **Grafana**
+- micro-batches in **Amazon Redshift** (and a time series in **Amazon Timestream** where the account allows it), behind **Grafana**
 - a raw **S3 data lake** queried with **Athena**
 
 > *We built a platform that helps event planners manage the operational complexity of large events, and designed the architecture to scale from a few planners managing small events to thousands of planners managing large events simultaneously.*
@@ -27,11 +27,11 @@ flowchart LR
     Q --> W["λ alert-worker"] --> D
     D --> API["λ dashboard-api<br/>+ API Gateway"] --> UI["Planner web app"]
 
-    K --> TW["λ timeseries-writer"] --> TS[("Timestream")]
-    K --> WL["λ warehouse-loader<br/>5-min micro-batches"] --> RS[("Redshift<br/>Serverless")]
+    K -.-> TW["λ timeseries-writer<br/>(enable_timestream)"] -.-> TS[("Timestream")]
+    K --> WL["λ warehouse-loader<br/>5-min micro-batches"] --> RS[("Redshift")]
     K --> F["Firehose"] --> L[("S3 data lake")] --> A["Athena"]
 
-    TS --> G["Grafana OSS on EC2"]
+    TS -.-> G["Grafana OSS on EC2"]
     RS --> G
     CW["CloudWatch metrics<br/>(incl. custom EMF)"] --> G
     A -.-> G
@@ -42,7 +42,7 @@ flowchart LR
 | Consumer | Batch | Latency | Writes to | Why it is tuned this way |
 |---|---|---|---|---|
 | `stream-processor` | up to 1,000 records / 2 s | seconds | DynamoDB, SNS | Live state and alerts must be fresh. It pre-aggregates the batch so DynamoDB gets one write per (event, zone, minute), not one per reading. |
-| `timeseries-writer` | up to 500 records / 1 s | ~1 s | Timestream | One point per reading, for the live Grafana charts. |
+| `timeseries-writer` (optional) | up to 500 records / 1 s | ~1 s | Timestream | One point per reading, for the live Grafana charts. Only where the account allows Timestream. |
 | `warehouse-loader` | up to 10,000 records / 5 min | minutes | Redshift | A warehouse wants few, large loads. Each load is one idempotent transaction. |
 | Firehose | 5 MB / 60 s | ~1 min | S3 (GZIP JSON lines) | Cheapest place to keep everything raw, for SQL with Athena. |
 
@@ -55,8 +55,8 @@ flowchart LR
 | **DynamoDB** | NoSQL live store: current state per zone, per-minute aggregates, alerts, event metadata. On-demand capacity. |
 | **SNS topic** | Alert fan-out. Message attributes (`severity`, `alert_type`, `planner_id`) drive subscription filter policies. Per-protocol bodies: readable text for email, JSON for the queue. |
 | **SQS** (+ DLQs) | Durable buffer between the topic and the worker. Partial batch failures, a redrive policy after 3 attempts, and a stream DLQ for Kinesis batches that keep failing. |
-| **Timestream** | Time-series store: every reading, for the live Grafana dashboard. |
-| **Redshift Serverless** | Warehouse: per-minute aggregates and an `events` dimension, for history and comparisons in Grafana. |
+| **Redshift** | Warehouse: per-minute aggregates and an `events` dimension, for history and comparisons in Grafana. Provisioned `ra3.large` in Academy, Serverless elsewhere. |
+| **Timestream** (optional) | Time-series store: every reading, for a live Grafana dashboard. AWS Academy denies it (see below). |
 | **Firehose → S3 → Glue → Athena** | Data lake with every raw record, partitioned by hour (partition projection, no crawler). Four saved queries. |
 | **API Gateway + Lambda** | Read-only JSON API and the planner-facing web app. |
 | **Grafana OSS on EC2** | The required dashboard tool. Data sources and dashboards are provisioned at boot, and AWS access comes from the instance profile, so no keys are stored. |
@@ -129,7 +129,7 @@ Every limit is a Terraform variable. The web app colors zones with the same valu
 | 2 shards (2,000 records/s) | raise `kinesis_shard_count`. The partition key spreads events across shards. |
 | 1 Lambda per shard and consumer | raise `processor_parallelization_factor` (up to 10 per shard, ordering kept per event). Use enhanced fan-out consumers past ~5 readers per shard. |
 | DynamoDB on-demand | no capacity planning. The key design keeps each event in its own partition. |
-| Redshift Serverless | scales RPUs with the query load and costs nothing while idle. |
+| Redshift `ra3.large` | add nodes, or switch to Serverless (`redshift_mode`), which scales with the query load and costs nothing while idle. |
 
 Try it: `make burst` sends 1,000 readings/s for 2 minutes. The simulator retries only the throttled records, with exponential backoff, and reports them.
 
@@ -140,7 +140,7 @@ Prerequisites: Terraform ≥ 1.11, AWS CLI v2, Python 3.12+, and AWS Academy Lea
 ```bash
 make whoami      # which account am I about to deploy to?
 make init        # creates/reuses s3://tfstate-<account>-<region> and runs terraform init
-make deploy      # about 5 minutes; Grafana needs ~3 more minutes to install itself
+make deploy      # ~10 minutes (the Redshift cluster is the slow part); Grafana installs itself ~3 minutes later
 make simulate    # 100 readings/s for 5 minutes (RATE=… DURATION=… to change)
 make dashboard   # planner web app
 make grafana     # prints the URL and admin password; anonymous read-only access is on
@@ -174,22 +174,27 @@ To switch accounts:
 
 | Dashboard | Data source | Shows |
 |---|---|---|
-| Live telemetry | Timestream | readings/s, readings per planner, and per event: occupancy, temperature, noise (limits drawn as lines), check-ins, latest reading per zone |
 | Analytics | Redshift | readings by event type, peak occupancy by zone, check-ins vs. guest list, cold-room maxima, loudest zones |
 | Pipeline health | CloudWatch | Kinesis ingestion, iterator age per consumer, delivery to each store, sensor→DynamoDB latency p50/p95, Lambda errors, queues and DLQs |
+| Live telemetry (with `enable_timestream`) | Timestream | readings/s, readings per planner, and per event: occupancy, temperature, noise (limits drawn as lines), check-ins, latest reading per zone |
+
+![Grafana analytics dashboard on Redshift, deployed in AWS Academy](docs/grafana-analytics.jpg)
+
+![Grafana pipeline health dashboard on CloudWatch](docs/grafana-pipeline.jpg)
 
 Athena is provisioned as a Grafana data source too, for ad-hoc SQL on the raw data lake (Explore). Its saved queries are in the Athena console under the `eventops` workgroup.
 
 ## AWS Academy notes
 
-| Constraint | How this repo handles it |
+Deployed and verified in an AWS Academy Learner Lab account on 2026-10-13. The defaults are what works there:
+
+| Constraint (verified) | How this repo handles it |
 |---|---|
-| No IAM role creation | every function, Firehose and EC2 use `LabRole` / `LabInstanceProfile` |
+| No IAM role creation | every function, Firehose and EC2 use `LabRole` / `LabInstanceProfile` (Firehose can assume `LabRole`) |
+| A service control policy denies `kinesis:IncreaseStreamRetentionPeriod` and `s3:GetBucketObjectLockConfiguration`. The Terraform AWS provider calls both on every stream and every bucket. | `academy_compat = true` (default) creates the stream and the data lake bucket with the AWS CLI (`scripts/academy/`), from Terraform, idempotently; destroy deletes them. In a regular account, set it to `false` to use `aws_kinesis_stream` / `aws_s3_bucket`. |
+| The lab policy denies every `timestream:*` action (and explicitly denies Timestream for InfluxDB). AWS also closed LiveAnalytics to new customers on 2025-06-20. | `enable_timestream = false` by default; the writer, table and live dashboard are ready for an account that has access |
+| Redshift Serverless is denied; DC2 nodes are retired | `redshift_mode = "provisioned"` (default) runs a single `ra3.large`; the Data API works with temporary credentials |
 | Amazon Managed Grafana needs IAM Identity Center | Grafana OSS on a `t3.small`, with an Elastic IP and port 3000 open only to your IP |
-| Timestream for LiveAnalytics closed to **new** AWS customers on 2025-06-20 | `enable_timestream = false` if the account is rejected; the other dashboards keep working |
-| Redshift DC2 nodes are retired | Serverless by default; `redshift_mode = "provisioned"` uses `ra3.large`; `off` removes it |
-| Firehose must be able to assume `LabRole` | `archive_mode = "lambda"` makes the processor write the same S3 layout itself |
-| Low Lambda concurrency quotas on new accounts | no reserved concurrency; the SQS consumer is capped at 2 |
 
 ## Test without an AWS account
 
@@ -203,7 +208,11 @@ make local-demo  # the whole pipeline on your laptop, web app on http://localhos
   - the Timestream writer
   - the SQL the Redshift loader generates
   - the invalid-record, cooldown and idempotency paths
-- `terraform test` plans the stack in every mode (all stores on, optional stores off, provisioned Redshift with the Lambda archive) and checks the switches.
+- `terraform test` plans the stack in every mode and checks the switches:
+  - Academy defaults
+  - optional stores off
+  - archive written by the Lambda
+  - a regular account with every store, including Timestream and Serverless
 
 ## Cost and cleanup
 
@@ -213,11 +222,11 @@ Approximate us-east-1 prices. Check the AWS pricing pages before relying on them
 |---|---|
 | Kinesis, 2 shards | ~$0.03/hour |
 | Grafana EC2 `t3.small` + Elastic IP | ~$0.03/hour |
-| Redshift Serverless, 8 RPU | ~$3/hour **only while queries run** (60 s minimum each). With 5-minute loads that is up to ~$1.20/hour while data flows. |
-| Redshift provisioned `ra3.large` | ~$0.54/hour, always |
+| Redshift provisioned `ra3.large` (default) | ~$0.54/hour, **always, even when idle** |
+| Redshift Serverless, 8 RPU (outside Academy) | ~$3/hour only while queries run (60 s minimum each); up to ~$1.20/hour while 5-minute loads flow |
 | Lambda, DynamoDB, SNS, SQS, Timestream, Firehose, S3, Athena | cents at lab volumes |
 
-Learner Lab stops EC2 instances when the session ends, but **not** Kinesis or Redshift. When you finish, run `make destroy`. Between sessions, at least run `terraform apply -var redshift_mode=off`.
+Learner Lab stops EC2 instances when the session ends, but **not** Kinesis or Redshift. When you finish, run `make destroy`. Between sessions, at least run `terraform apply -var redshift_mode=off` (about $13/day saved).
 
 ## Repository layout
 

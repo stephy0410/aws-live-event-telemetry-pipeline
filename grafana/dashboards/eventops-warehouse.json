@@ -224,7 +224,7 @@
             "type": "grafana-redshift-datasource",
             "uid": "redshift"
           },
-          "rawSQL": "SELECT MAX(loaded_at) AS last_load FROM telemetry_minute",
+          "rawSQL": "SELECT EXTRACT(EPOCH FROM MAX(loaded_at))::BIGINT * 1000 AS last_load FROM telemetry_minute",
           "format": 1,
           "fillMode": {
             "mode": 0

@@ -3,16 +3,55 @@
 # the data lake answers "what happened" across all events and all time.
 
 resource "aws_s3_bucket" "lake" {
-  count = local.data_lake_enabled ? 1 : 0
+  count = local.data_lake_enabled && !var.academy_compat ? 1 : 0
 
   bucket        = local.data_lake_bucket
   force_destroy = true # lab: `terraform destroy` also empties it
 }
 
+# Same bucket created with the AWS CLI, because AWS Academy denies a read the provider
+# makes on every bucket (see variable academy_compat). Destroy empties and deletes it.
+resource "terraform_data" "lake_bucket" {
+  count = local.data_lake_enabled && var.academy_compat ? 1 : 0
+
+  triggers_replace = [local.data_lake_bucket]
+  input = {
+    bucket  = local.data_lake_bucket
+    region  = var.region
+    profile = var.profile
+  }
+
+  provisioner "local-exec" {
+    command = "scripts/academy/s3-bucket.sh create"
+    environment = {
+      BUCKET     = self.input.bucket
+      TF_REGION  = self.input.region
+      TF_PROFILE = self.input.profile
+    }
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = "scripts/academy/s3-bucket.sh delete"
+    environment = {
+      BUCKET     = self.input.bucket
+      TF_REGION  = self.input.region
+      TF_PROFILE = self.input.profile
+    }
+  }
+}
+
+locals {
+  lake_bucket_name = !local.data_lake_enabled ? null : (
+    var.academy_compat ? terraform_data.lake_bucket[0].input.bucket : aws_s3_bucket.lake[0].bucket
+  )
+  lake_bucket_arn = local.data_lake_enabled ? "arn:aws:s3:::${local.lake_bucket_name}" : null
+}
+
 resource "aws_s3_bucket_public_access_block" "lake" {
   count = local.data_lake_enabled ? 1 : 0
 
-  bucket                  = aws_s3_bucket.lake[0].id
+  bucket                  = local.lake_bucket_name
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -22,7 +61,7 @@ resource "aws_s3_bucket_public_access_block" "lake" {
 resource "aws_s3_bucket_lifecycle_configuration" "lake" {
   count = local.data_lake_enabled ? 1 : 0
 
-  bucket = aws_s3_bucket.lake[0].id
+  bucket = local.lake_bucket_name
 
   rule {
     id     = "expire-raw"
@@ -83,13 +122,13 @@ resource "aws_kinesis_firehose_delivery_stream" "archive" {
   destination = "extended_s3"
 
   kinesis_source_configuration {
-    kinesis_stream_arn = aws_kinesis_stream.telemetry.arn
+    kinesis_stream_arn = local.stream_arn
     role_arn           = data.aws_iam_role.lambda.arn
   }
 
   extended_s3_configuration {
     role_arn   = data.aws_iam_role.lambda.arn
-    bucket_arn = aws_s3_bucket.lake[0].arn
+    bucket_arn = local.lake_bucket_arn
 
     # Same layout the processor uses in archive_mode = "lambda", so Athena works with both.
     prefix              = "raw/dt=!{timestamp:yyyy-MM-dd-HH}/"
@@ -135,7 +174,7 @@ resource "aws_glue_catalog_table" "telemetry_raw" {
     "projection.dt.range"         = "NOW-${var.data_lake_retention_days}DAYS,NOW"
     "projection.dt.interval"      = "1"
     "projection.dt.interval.unit" = "HOURS"
-    "storage.location.template"   = "s3://${aws_s3_bucket.lake[0].bucket}/raw/dt=$${dt}/"
+    "storage.location.template"   = "s3://${local.lake_bucket_name}/raw/dt=$${dt}/"
   }
 
   partition_keys {
@@ -145,7 +184,7 @@ resource "aws_glue_catalog_table" "telemetry_raw" {
   }
 
   storage_descriptor {
-    location      = "s3://${aws_s3_bucket.lake[0].bucket}/raw/"
+    location      = "s3://${local.lake_bucket_name}/raw/"
     input_format  = "org.apache.hadoop.mapred.TextInputFormat"
     output_format = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
 
@@ -249,7 +288,7 @@ resource "aws_athena_workgroup" "lake" {
     enforce_workgroup_configuration = true
 
     result_configuration {
-      output_location = "s3://${aws_s3_bucket.lake[0].bucket}/athena-results/"
+      output_location = "s3://${local.lake_bucket_name}/athena-results/"
     }
   }
 }

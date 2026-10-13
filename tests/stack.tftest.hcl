@@ -28,7 +28,7 @@ mock_provider "http" {
 
 mock_provider "random" {}
 
-run "defaults_build_every_store" {
+run "academy_defaults" {
   command = plan
 
   assert {
@@ -36,12 +36,20 @@ run "defaults_build_every_store" {
     error_message = "archive_mode = firehose should create Firehose and the Glue table"
   }
   assert {
-    condition     = length(aws_timestreamwrite_table.telemetry) == 1 && length(aws_lambda_function.timeseries_writer) == 1
-    error_message = "Timestream and its writer should be on by default"
+    condition     = length(terraform_data.telemetry_stream) == 1 && length(aws_kinesis_stream.telemetry) == 0 && length(terraform_data.lake_bucket) == 1
+    error_message = "academy_compat (default) creates the stream and bucket with the AWS CLI"
   }
   assert {
-    condition     = length(aws_redshiftserverless_workgroup.warehouse) == 1 && length(aws_redshift_cluster.warehouse) == 0
-    error_message = "Redshift Serverless is the default warehouse"
+    condition     = aws_lambda_event_source_mapping.telemetry.event_source_arn == "arn:aws:kinesis:us-east-1:123456789012:stream/eventops-telemetry"
+    error_message = "consumers should read the stream by its account-specific ARN"
+  }
+  assert {
+    condition     = length(aws_timestreamwrite_table.telemetry) == 0 && length(aws_lambda_function.timeseries_writer) == 0
+    error_message = "Timestream is off by default (AWS Academy denies it)"
+  }
+  assert {
+    condition     = length(aws_redshift_cluster.warehouse) == 1 && length(aws_redshiftserverless_workgroup.warehouse) == 0
+    error_message = "a provisioned cluster is the default warehouse (Academy denies Serverless)"
   }
   assert {
     condition     = length(aws_lambda_event_source_mapping.warehouse) == 1 && aws_lambda_event_source_mapping.warehouse[0].batch_size == 10000
@@ -56,8 +64,8 @@ run "defaults_build_every_store" {
     error_message = "with Firehose, the processor must not archive to S3 itself"
   }
   assert {
-    condition     = length(local.grafana_datasources) == 4 && length(local.grafana_dashboards) == 3
-    error_message = "Grafana should get CloudWatch, Timestream, Redshift and Athena, plus three dashboards"
+    condition     = length(local.grafana_datasources) == 3 && length(local.grafana_dashboards) == 2
+    error_message = "Grafana should get CloudWatch, Redshift and Athena, plus two dashboards"
   }
   assert {
     condition     = strcontains(local.grafana_dashboards["eventops-pipeline.json"], "eventops-stream-processor") && length(regexall("__[A-Z][A-Z_]+__", join("", values(local.grafana_dashboards)))) == 0
@@ -69,9 +77,8 @@ run "minimal_without_optional_stores" {
   command = plan
 
   variables {
-    enable_timestream = false
-    redshift_mode     = "off"
-    archive_mode      = "off"
+    redshift_mode = "off"
+    archive_mode  = "off"
   }
 
   assert {
@@ -100,9 +107,8 @@ run "provisioned_redshift_and_lambda_archive" {
   command = plan
 
   variables {
-    redshift_mode = "provisioned"
-    archive_mode  = "lambda"
-    name          = "eventops-b"
+    archive_mode = "lambda"
+    name         = "eventops-b"
   }
 
   assert {
@@ -120,6 +126,38 @@ run "provisioned_redshift_and_lambda_archive" {
   assert {
     condition     = aws_glue_catalog_database.lake[0].name == "eventops_b_lake"
     error_message = "Glue names cannot contain dashes"
+  }
+}
+
+run "regular_account_with_every_store" {
+  command = plan
+
+  variables {
+    academy_compat    = false
+    enable_timestream = true
+    redshift_mode     = "serverless"
+  }
+
+  assert {
+    condition     = length(aws_timestreamwrite_table.telemetry) == 1 && length(aws_lambda_function.timeseries_writer) == 1
+    error_message = "enable_timestream adds the table and its writer"
+  }
+  assert {
+    condition     = length(aws_redshiftserverless_workgroup.warehouse) == 1 && length(aws_redshift_cluster.warehouse) == 0
+    error_message = "serverless mode creates a workgroup, not a cluster"
+  }
+  assert {
+    condition     = length(local.grafana_datasources) == 4 && length(local.grafana_dashboards) == 3 && local.grafana_home_dashboard == "eventops-live.json"
+    error_message = "with Timestream, Grafana gets four data sources, three dashboards and the live one as home"
+  }
+
+  assert {
+    condition     = length(aws_kinesis_stream.telemetry) == 1 && length(terraform_data.telemetry_stream) == 0
+    error_message = "outside Academy the stream is a regular aws_kinesis_stream"
+  }
+  assert {
+    condition     = length(aws_s3_bucket.lake) == 1 && length(terraform_data.lake_bucket) == 0
+    error_message = "outside Academy the bucket is a regular aws_s3_bucket"
   }
 }
 

@@ -35,7 +35,7 @@ output "redshift_target" {
 
 output "kinesis_stream_name" {
   description = "Stream the sensor simulator writes to"
-  value       = aws_kinesis_stream.telemetry.name
+  value       = local.stream_name
 }
 
 output "alerts_topic_arn" {
@@ -55,7 +55,7 @@ output "dynamodb_table_name" {
 
 output "data_lake_bucket" {
   description = "S3 bucket with the raw telemetry archive (null when archive_mode = off)"
-  value       = local.data_lake_enabled ? aws_s3_bucket.lake[0].bucket : null
+  value       = local.lake_bucket_name
 }
 
 output "athena_workgroup" {

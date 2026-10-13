@@ -64,7 +64,7 @@ resource "aws_lambda_function" "processor" {
   environment {
     variables = merge(local.lambda_common_env, local.alert_rule_env, {
       ALERTS_TOPIC_ARN       = aws_sns_topic.alerts.arn
-      ARCHIVE_BUCKET         = var.archive_mode == "lambda" ? aws_s3_bucket.lake[0].bucket : ""
+      ARCHIVE_BUCKET         = var.archive_mode == "lambda" ? local.lake_bucket_name : ""
       AGGREGATE_TTL_DAYS     = tostring(var.aggregate_ttl_days)
       ALERT_COOLDOWN_SECONDS = tostring(var.alert_cooldown_seconds)
     })
@@ -77,7 +77,7 @@ resource "aws_lambda_function" "processor" {
 }
 
 resource "aws_lambda_event_source_mapping" "telemetry" {
-  event_source_arn = aws_kinesis_stream.telemetry.arn
+  event_source_arn = local.stream_arn
   function_name    = aws_lambda_function.processor.arn
 
   # TRIM_HORIZON: on first deploy, also process whatever producers sent before the
@@ -136,7 +136,7 @@ resource "aws_lambda_function" "timeseries_writer" {
 resource "aws_lambda_event_source_mapping" "timeseries" {
   count = var.enable_timestream ? 1 : 0
 
-  event_source_arn = aws_kinesis_stream.telemetry.arn
+  event_source_arn = local.stream_arn
   function_name    = aws_lambda_function.timeseries_writer[0].arn
 
   starting_position                  = "TRIM_HORIZON"
@@ -184,7 +184,7 @@ resource "aws_lambda_function" "warehouse_loader" {
 resource "aws_lambda_event_source_mapping" "warehouse" {
   count = local.redshift_enabled ? 1 : 0
 
-  event_source_arn = aws_kinesis_stream.telemetry.arn
+  event_source_arn = local.stream_arn
   function_name    = aws_lambda_function.warehouse_loader[0].arn
 
   # A warehouse wants few, large loads: wait up to 5 minutes or 10,000 records.
