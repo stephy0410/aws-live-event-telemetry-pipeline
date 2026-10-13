@@ -1,0 +1,563 @@
+{
+  "uid": "eventops-warehouse",
+  "title": "EventOps · Analytics (Redshift)",
+  "description": "Kinesis -> Lambda (5-minute micro-batches) -> Amazon Redshift. History and comparisons across planners and events.",
+  "tags": [
+    "eventops",
+    "redshift"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "10s",
+      "30s",
+      "1m",
+      "5m"
+    ]
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "EventOps dashboards",
+      "type": "dashboards",
+      "tags": [
+        "eventops"
+      ],
+      "asDropdown": true
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Readings loaded in range",
+      "description": "",
+      "datasource": {
+        "type": "grafana-redshift-datasource",
+        "uid": "redshift"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-redshift-datasource",
+            "uid": "redshift"
+          },
+          "rawSQL": "SELECT SUM(readings) AS readings FROM telemetry_minute WHERE $__timeFilter(minute_ts)",
+          "format": 1,
+          "fillMode": {
+            "mode": 0
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#C9A86A"
+          },
+          "custom": {},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Rows in the warehouse",
+      "description": "One row per minute, event, zone and metric per load",
+      "datasource": {
+        "type": "grafana-redshift-datasource",
+        "uid": "redshift"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-redshift-datasource",
+            "uid": "redshift"
+          },
+          "rawSQL": "SELECT COUNT(*) AS rows_total FROM telemetry_minute",
+          "format": 1,
+          "fillMode": {
+            "mode": 0
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#E8E2D6"
+          },
+          "custom": {},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Events registered",
+      "description": "",
+      "datasource": {
+        "type": "grafana-redshift-datasource",
+        "uid": "redshift"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-redshift-datasource",
+            "uid": "redshift"
+          },
+          "rawSQL": "SELECT COUNT(*) AS events FROM events",
+          "format": 1,
+          "fillMode": {
+            "mode": 0
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#E8E2D6"
+          },
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Last load",
+      "description": "Loads arrive in micro-batches, every few minutes",
+      "datasource": {
+        "type": "grafana-redshift-datasource",
+        "uid": "redshift"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-redshift-datasource",
+            "uid": "redshift"
+          },
+          "rawSQL": "SELECT MAX(loaded_at) AS last_load FROM telemetry_minute",
+          "format": 1,
+          "fillMode": {
+            "mode": 0
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#C9A86A"
+          },
+          "custom": {},
+          "unit": "dateTimeFromNow"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Readings per minute by event type",
+      "description": "",
+      "datasource": {
+        "type": "grafana-redshift-datasource",
+        "uid": "redshift"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-redshift-datasource",
+            "uid": "redshift"
+          },
+          "rawSQL": "SELECT minute_ts AS time, COALESCE(event_type, 'unregistered') AS event_type, SUM(readings) AS readings\nFROM event_metrics_minute\nWHERE $__timeFilter(minute_ts)\nGROUP BY 1, 2\nORDER BY 1",
+          "format": 0,
+          "fillMode": {
+            "mode": 0
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth",
+            "gradientMode": "opacity"
+          },
+          "unit": "short",
+          "displayName": "${__field.labels.event_type}"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "bargauge",
+      "title": "Peak occupancy by zone, % of capacity",
+      "description": "Fullest minute of each zone",
+      "datasource": {
+        "type": "grafana-redshift-datasource",
+        "uid": "redshift"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 11
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-redshift-datasource",
+            "uid": "redshift"
+          },
+          "rawSQL": "SELECT COALESCE(event_name, event_id) || ' · ' || zone AS zone,\n       ROUND(100.0 * MAX(value_max) / NULLIF(MAX(capacity), 0), 1) AS peak_pct\nFROM event_metrics_minute\nWHERE metric = 'occupancy' AND zone <> 'cold-room' AND $__timeFilter(minute_ts)\nGROUP BY 1\nORDER BY 2 DESC\nLIMIT 12",
+          "format": 1,
+          "fillMode": {
+            "mode": 0
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {},
+          "unit": "percent",
+          "min": 0,
+          "max": 120,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#C9A86A",
+                "value": null
+              },
+              {
+                "color": "#A39382",
+                "value": __OCCUPANCY_WARNING_PCT__
+              },
+              {
+                "color": "#C98B8B",
+                "value": 100
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true,
+        "valueMode": "text",
+        "reduceOptions": {
+          "calcs": [],
+          "fields": "",
+          "values": true
+        },
+        "namePlacement": "left"
+      }
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Check-ins by event",
+      "description": "Guests scanned at the entrance vs. the guest list",
+      "datasource": {
+        "type": "grafana-redshift-datasource",
+        "uid": "redshift"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 11
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-redshift-datasource",
+            "uid": "redshift"
+          },
+          "rawSQL": "SELECT e.planner_name AS planner, e.event_name AS event, e.event_type AS type,\n       e.guests_expected AS expected, SUM(t.value_sum)::int AS checked_in,\n       ROUND(100.0 * SUM(t.value_sum) / NULLIF(e.guests_expected, 0), 0) AS pct\nFROM telemetry_minute t\nJOIN events e ON e.event_id = t.event_id\nWHERE t.metric = 'checkin' AND $__timeFilter(t.minute_ts)\nGROUP BY 1, 2, 3, 4\nORDER BY checked_in DESC",
+          "format": 1,
+          "fillMode": {
+            "mode": 0
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Cold-room temperature, max per minute",
+      "description": "Food safety across every event",
+      "datasource": {
+        "type": "grafana-redshift-datasource",
+        "uid": "redshift"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-redshift-datasource",
+            "uid": "redshift"
+          },
+          "rawSQL": "SELECT minute_ts AS time, COALESCE(event_name, event_id) AS event, MAX(value_max) AS celsius\nFROM event_metrics_minute\nWHERE metric = 'temperature_c' AND zone = 'cold-room' AND $__timeFilter(minute_ts)\nGROUP BY 1, 2\nORDER BY 1",
+          "format": 0,
+          "fillMode": {
+            "mode": 0
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth",
+            "gradientMode": "opacity",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "unit": "celsius",
+          "displayName": "${__field.labels.event}",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#C9A86A",
+                "value": null
+              },
+              {
+                "color": "#C98B8B",
+                "value": __COLD_ROOM_MAX_C__
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Loudest zones",
+      "description": "Minutes at or above the noise warning level",
+      "datasource": {
+        "type": "grafana-redshift-datasource",
+        "uid": "redshift"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 23,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-redshift-datasource",
+            "uid": "redshift"
+          },
+          "rawSQL": "SELECT COALESCE(event_name, event_id) AS event, zone,\n       COUNT(*) AS loud_minutes, ROUND(MAX(value_max), 1) AS peak_db\nFROM event_metrics_minute\nWHERE metric = 'noise_db' AND value_max >= __NOISE_WARNING_DB__ AND $__timeFilter(minute_ts)\nGROUP BY 1, 2\nORDER BY 3 DESC\nLIMIT 10",
+          "format": 1,
+          "fillMode": {
+            "mode": 0
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    }
+  ]
+}

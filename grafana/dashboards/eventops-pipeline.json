@@ -1,0 +1,1137 @@
+{
+  "uid": "eventops-pipeline",
+  "title": "EventOps · Pipeline health (CloudWatch)",
+  "description": "One stream, many consumers: ingestion, lag, delivery to each store, alerts and dead-letter queues.",
+  "tags": [
+    "eventops",
+    "cloudwatch"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "10s",
+      "30s",
+      "1m",
+      "5m"
+    ]
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "EventOps dashboards",
+      "type": "dashboards",
+      "tags": [
+        "eventops"
+      ],
+      "asDropdown": true
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Ingestion · records into Kinesis per minute",
+      "description": "",
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Kinesis",
+          "metricName": "IncomingRecords",
+          "dimensions": {
+            "StreamName": "__NAME__-telemetry"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Incoming records"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Kinesis",
+          "metricName": "WriteProvisionedThroughputExceeded",
+          "dimensions": {
+            "StreamName": "__NAME__-telemetry"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Throttled writes"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth",
+            "gradientMode": "opacity"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Processing lag · iterator age per consumer",
+      "description": "How far behind the newest record each consumer is. The warehouse loader waits up to 5 minutes on purpose.",
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Lambda",
+          "metricName": "IteratorAge",
+          "dimensions": {
+            "FunctionName": "__NAME__-stream-processor"
+          },
+          "statistic": "Maximum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Processor → DynamoDB"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Lambda",
+          "metricName": "IteratorAge",
+          "dimensions": {
+            "FunctionName": "__NAME__-timeseries-writer"
+          },
+          "statistic": "Maximum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Writer → Timestream"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Lambda",
+          "metricName": "IteratorAge",
+          "dimensions": {
+            "FunctionName": "__NAME__-warehouse-loader"
+          },
+          "statistic": "Maximum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Loader → Redshift"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth",
+            "gradientMode": "opacity"
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Delivered to each store per minute",
+      "description": "Custom metrics emitted by the Lambdas with CloudWatch Embedded Metric Format",
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "EventOps/Pipeline",
+          "metricName": "RecordsProcessed",
+          "dimensions": {
+            "Pipeline": "__NAME__"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "DynamoDB (processor)"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "EventOps/Pipeline",
+          "metricName": "TimestreamRecordsWritten",
+          "dimensions": {
+            "Pipeline": "__NAME__"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Timestream"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "EventOps/Pipeline",
+          "metricName": "WarehouseRowsLoaded",
+          "dimensions": {
+            "Pipeline": "__NAME__"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Redshift rows (aggregated)"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Firehose",
+          "metricName": "DeliveryToS3.Records",
+          "dimensions": {
+            "DeliveryStreamName": "__NAME__-archive"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "S3 data lake (Firehose)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth",
+            "gradientMode": "opacity"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Sensor → DynamoDB latency",
+      "description": "From the sensor's timestamp to the live state being written",
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "EventOps/Pipeline",
+          "metricName": "EndToEndLatencyMs",
+          "dimensions": {
+            "Pipeline": "__NAME__"
+          },
+          "statistic": "p50",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "p50"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "EventOps/Pipeline",
+          "metricName": "EndToEndLatencyMs",
+          "dimensions": {
+            "Pipeline": "__NAME__"
+          },
+          "statistic": "p95",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "p95"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "EventOps/Pipeline",
+          "metricName": "EndToEndLatencyMs",
+          "dimensions": {
+            "Pipeline": "__NAME__"
+          },
+          "statistic": "Maximum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "max"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth",
+            "gradientMode": "opacity"
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Lambda invocations",
+      "description": "",
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Lambda",
+          "metricName": "Invocations",
+          "dimensions": {
+            "FunctionName": "__NAME__-stream-processor"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Processor → DynamoDB"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Lambda",
+          "metricName": "Invocations",
+          "dimensions": {
+            "FunctionName": "__NAME__-timeseries-writer"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Writer → Timestream"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Lambda",
+          "metricName": "Invocations",
+          "dimensions": {
+            "FunctionName": "__NAME__-warehouse-loader"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Loader → Redshift"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Lambda",
+          "metricName": "Invocations",
+          "dimensions": {
+            "FunctionName": "__NAME__-alert-worker"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Alert worker"
+        },
+        {
+          "refId": "E",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Lambda",
+          "metricName": "Invocations",
+          "dimensions": {
+            "FunctionName": "__NAME__-dashboard-api"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Dashboard API"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth",
+            "gradientMode": "opacity"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Lambda errors (should stay at 0)",
+      "description": "",
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Lambda",
+          "metricName": "Errors",
+          "dimensions": {
+            "FunctionName": "__NAME__-stream-processor"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Processor → DynamoDB"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Lambda",
+          "metricName": "Errors",
+          "dimensions": {
+            "FunctionName": "__NAME__-timeseries-writer"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Writer → Timestream"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Lambda",
+          "metricName": "Errors",
+          "dimensions": {
+            "FunctionName": "__NAME__-warehouse-loader"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Loader → Redshift"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Lambda",
+          "metricName": "Errors",
+          "dimensions": {
+            "FunctionName": "__NAME__-alert-worker"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Alert worker"
+        },
+        {
+          "refId": "E",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/Lambda",
+          "metricName": "Errors",
+          "dimensions": {
+            "FunctionName": "__NAME__-dashboard-api"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Dashboard API"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth",
+            "gradientMode": "opacity"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Alerts · topic → queue → worker",
+      "description": "",
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "EventOps/Pipeline",
+          "metricName": "AlertsPublished",
+          "dimensions": {
+            "Pipeline": "__NAME__"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Published by processor"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/SNS",
+          "metricName": "NumberOfMessagesPublished",
+          "dimensions": {
+            "TopicName": "__NAME__-alerts"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "SNS published"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/SQS",
+          "metricName": "NumberOfMessagesDeleted",
+          "dimensions": {
+            "QueueName": "__NAME__-alerts"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Stored by worker"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth",
+            "gradientMode": "opacity"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Backlogs and dead-letter queues (should stay at 0)",
+      "description": "",
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/SQS",
+          "metricName": "ApproximateNumberOfMessagesVisible",
+          "dimensions": {
+            "QueueName": "__NAME__-alerts"
+          },
+          "statistic": "Maximum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Alerts waiting"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/SQS",
+          "metricName": "ApproximateNumberOfMessagesVisible",
+          "dimensions": {
+            "QueueName": "__NAME__-alerts-dlq"
+          },
+          "statistic": "Maximum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Alerts DLQ"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/SQS",
+          "metricName": "ApproximateNumberOfMessagesVisible",
+          "dimensions": {
+            "QueueName": "__NAME__-stream-dlq"
+          },
+          "statistic": "Maximum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Stream DLQ"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth",
+            "gradientMode": "opacity"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "DynamoDB capacity consumed",
+      "description": "",
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 24,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/DynamoDB",
+          "metricName": "ConsumedWriteCapacityUnits",
+          "dimensions": {
+            "TableName": "__NAME__-ops"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Write units"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Metrics",
+          "region": "default",
+          "namespace": "AWS/DynamoDB",
+          "metricName": "ConsumedReadCapacityUnits",
+          "dimensions": {
+            "TableName": "__NAME__-ops"
+          },
+          "statistic": "Sum",
+          "period": "60",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "matchExact": true,
+          "id": "",
+          "expression": "",
+          "label": "Read units"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth",
+            "gradientMode": "opacity"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    }
+  ]
+}

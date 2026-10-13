@@ -1,0 +1,19 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform.tfvars.example
+backend.hcl
+tfplan
+crash.log
+crash.*.log
+
+# Lambda package (built by Terraform's archive_file)
+build/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+.DS_Store

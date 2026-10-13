@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars (not committed) and adjust. Every value has a working default.
+
+# Get CRITICAL alerts by email (SNS sends a confirmation email first).
+# alert_email = "you@example.com"
+
+# Turn stores on and off, e.g. if the account rejects one of them:
+# enable_timestream = false                # Timestream LiveAnalytics is closed to new AWS customers
+# redshift_mode     = "provisioned"        # serverless (default) | provisioned | off
+# archive_mode      = "lambda"             # firehose (default) | lambda | off
+
+# Who can open Grafana (default: only the public IP of the machine running terraform).
+# grafana_allowed_cidrs = ["203.0.113.0/24"]
+
+# Bigger ingestion: more shards = more throughput (1,000 records/s each).
+# kinesis_shard_count = 4

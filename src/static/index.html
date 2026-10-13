@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EventOps Live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Editorial black & ivory: condensed serif display type, italic accents, tracked
+     micro-labels, hairline rules, alternating dark and light sections. */
+  :root {
+    --serif: "Instrument Serif", "Bodoni 72", Didot, Georgia, serif;
+    --sans: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --page: #ebe8e3;
+    --max: 1240px;
+  }
+  .on-light {
+    --bg: #f1efeb; --ink: #141414; --ink-2: #57524b; --muted: #8c857b;
+    --rule: rgba(20, 20, 20, 0.16); --grid: #e0dcd4; --axis: #bdb6aa; --raised: #e8e4dd;
+    --accent: #a8781f;
+    --s1: #a8781f; --s2: #2f6fc4; --s3: #c24e2c; --s4: #7f55c8; --s5: #1f8a57;
+    --ok: #2f7d4f; --warning: #b7791f; --critical: #b3392b;
+    background: var(--bg); color: var(--ink);
+  }
+  .on-dark {
+    --bg: #141414; --ink: #f3efe8; --ink-2: #bdb5a8; --muted: #8a8378;
+    --rule: rgba(243, 239, 232, 0.16); --grid: #2a2826; --axis: #3a3734; --raised: #1d1c1a;
+    --accent: #b98a2f;
+    --s1: #b98a2f; --s2: #4a84d4; --s3: #d45f3c; --s4: #9a6bd6; --s5: #2f9e6c;
+    --ok: #7fb07a; --warning: #e0b354; --critical: #e5675f;
+    background: var(--bg); color: var(--ink);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--page); color: #141414; font: 14px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+  .inner { max-width: var(--max); margin: 0 auto; padding: 0 40px; }
+
+  .eyebrow { font: 500 10.5px/1.4 var(--sans); letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-2); }
+  .display { font-family: var(--serif); font-weight: 400; text-transform: uppercase; letter-spacing: -0.01em; line-height: 0.88; margin: 0; }
+  .display em, .italic { font-family: var(--serif); font-style: italic; text-transform: none; }
+  .lede { font-family: var(--serif); font-style: italic; font-size: 19px; line-height: 1.35; color: var(--ink-2); margin: 10px 0 0; max-width: 34ch; }
+  .link-arrow { font-family: var(--serif); font-style: italic; font-size: 16px; text-decoration: none; display: inline-flex; gap: 10px; align-items: center; }
+  .link-arrow::before { content: ""; width: 28px; height: 1px; background: currentColor; }
+  .link-arrow:hover { opacity: 0.75; }
+
+  /* --- nav --- */
+  nav.top { position: sticky; top: 0; z-index: 5; }
+  nav.top .inner { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; height: 44px; }
+  nav.top .links { display: flex; gap: 28px; }
+  nav.top .links a { text-decoration: none; }
+  nav.top .brand { font: 500 13px/1 var(--sans); letter-spacing: 0.28em; text-transform: uppercase; color: var(--ink); }
+  nav.top .status { justify-self: end; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); flex: none; display: inline-block; }
+  .dot.live { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+  .dot.err { background: var(--critical); }
+
+  /* --- hero --- */
+  .hero { display: grid; grid-template-columns: 1fr 1fr; min-height: 520px; }
+  .hero-left { padding: 64px 56px 40px; display: flex; flex-direction: column; justify-content: space-between; gap: 32px; }
+  .hero h1 { font-size: clamp(64px, 9.5vw, 138px); }
+  .hero h1 span, .hero h1 em { display: block; }
+  .hero h1 em { font-size: 0.7em; line-height: 1; padding-left: 0.08em; }
+  .hero-sign { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  .hero-sign .signature { font-family: var(--serif); font-style: italic; font-size: clamp(30px, 3.4vw, 44px); line-height: 1; }
+  .hero-right { position: relative; padding: 56px; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden;
+    background:
+      radial-gradient(60% 55% at 62% 78%, rgba(201, 160, 106, 0.22), transparent 70%),
+      radial-gradient(35% 30% at 30% 30%, rgba(201, 160, 106, 0.08), transparent 70%),
+      var(--bg); }
+  .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 36px 40px; margin-top: 28px; }
+  .kpi { border-top: 1px solid var(--rule); padding-top: 14px; min-width: 0; }
+  .kpi .value { font-family: var(--serif); font-size: clamp(44px, 5vw, 64px); line-height: 1; margin-top: 10px; }
+  .kpi .hint { font-family: var(--serif); font-style: italic; color: var(--ink-2); font-size: 15px; margin-top: 6px; }
+
+  /* --- band --- */
+  .band { padding: 64px 0 56px; }
+  .band .tagline { font-family: var(--serif); font-style: italic; font-size: clamp(26px, 3.2vw, 40px); line-height: 1.15; text-align: center; margin: 0 auto 40px; max-width: 22ch; }
+  .band .eyebrow { margin-bottom: 14px; }
+
+  /* --- split sections --- */
+  section.block { padding: 80px 0; }
+  .split { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 56px; align-items: start; }
+  .display-md { font-size: clamp(52px, 6.4vw, 86px); margin-top: 10px; }
+
+  ol.numbered { list-style: none; margin: 28px 0 0; padding: 0; border-top: 1px solid var(--rule); }
+  ol.numbered > li { border-bottom: 1px solid var(--rule); }
+  .planner { display: grid; grid-template-columns: 34px 1fr; gap: 4px 10px; width: 100%; padding: 14px 0; align-items: baseline; }
+  .planner .num { font: 500 10.5px var(--sans); letter-spacing: 0.1em; color: var(--muted); }
+  .planner .name { font: 500 11.5px var(--sans); letter-spacing: 0.2em; text-transform: uppercase; }
+  .planner .meta { grid-column: 2; font-family: var(--serif); font-style: italic; color: var(--ink-2); font-size: 15px; }
+  .planner[aria-pressed="true"] .name::after { content: "  ←"; letter-spacing: 0; }
+  .planner:hover .name { text-decoration: underline; text-underline-offset: 4px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { font: 500 10px var(--sans); letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 0 10px 10px; border-bottom: 1px solid var(--rule); }
+  td { padding: 14px 10px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr.pick { cursor: pointer; }
+  tbody tr.pick:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+  tbody tr[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .ev-name { font-family: var(--serif); font-size: 21px; line-height: 1.1; }
+  .ev-dot { display: none; margin-right: 8px; vertical-align: middle; }
+  .ev-sub { font-family: var(--serif); font-style: italic; color: var(--ink-2); font-size: 14.5px; }
+  .tag { display: inline-flex; align-items: center; gap: 7px; font: 500 10px var(--sans); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
+  .table-scroll { overflow-x: auto; }
+  .small-num { font-variant-numeric: tabular-nums; color: var(--ink-2); font-size: 12.5px; }
+
+  .meter { height: 2px; background: color-mix(in srgb, var(--fill, var(--accent)) 22%, var(--bg)); margin-top: 7px; }
+  .meter > i { display: block; height: 100%; background: var(--fill, var(--accent)); }
+
+  .sev { display: inline-flex; align-items: center; gap: 7px; font: 600 10px var(--sans); letter-spacing: 0.2em; text-transform: uppercase; white-space: nowrap; }
+
+  /* --- event section --- */
+  .event-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px 32px; }
+  .event-head h2 { font-size: clamp(46px, 6vw, 84px); margin-top: 12px; }
+  .event-head .lede { max-width: none; }
+  .event-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; margin: 44px 0 52px; }
+  .event-stats > div { border-top: 1px solid var(--rule); padding-top: 12px; }
+  .event-stats .value { font-family: var(--serif); font-size: 38px; line-height: 1.05; margin-top: 8px; }
+  .zones { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0 28px; margin-bottom: 60px; }
+  .zone { border-top: 1px solid var(--rule); padding: 18px 0 22px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; min-width: 0; }
+  .zone .z-head { display: flex; align-items: baseline; gap: 10px; }
+  .zone .z-num { font: 500 10.5px var(--sans); color: var(--muted); letter-spacing: 0.1em; }
+  .zone .z-name { font-family: var(--serif); font-size: 24px; text-transform: uppercase; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .zone .swatch { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
+  .zone .z-sev { margin-left: auto; flex: none; }
+  .zone .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .zone .row span { font: 500 10px var(--sans); letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+  .zone .row b { font-weight: 500; font-variant-numeric: tabular-nums; }
+  .sub-title { font-family: var(--serif); font-size: 30px; text-transform: uppercase; margin: 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 14px 0 10px; }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; font: 500 10px var(--sans); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-2); }
+  .legend i { width: 18px; height: 2px; display: inline-block; }
+
+  /* --- charts --- */
+  .chart { position: relative; width: 100%; }
+  .chart svg { display: block; overflow: visible; }
+  .chart:focus-visible { outline: 1px solid var(--accent); outline-offset: 6px; }
+  .tick { fill: var(--muted); font: 10.5px var(--sans); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+  details.table-view { margin-top: 14px; }
+  details.table-view summary { cursor: pointer; font-family: var(--serif); font-style: italic; font-size: 15px; color: var(--ink-2); list-style: none; }
+  details.table-view summary::before { content: "→  "; }
+  details.table-view[open] summary::before { content: "↓  "; }
+  details.table-view .table-scroll { max-height: 280px; overflow: auto; margin-top: 10px; }
+  details.table-view td { padding: 6px 10px; font-size: 12.5px; }
+
+  /* --- alerts --- */
+  ol.alerts { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+  ol.alerts > li { border-bottom: 1px solid var(--rule); }
+  .alert { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 4px 12px; padding: 20px 0; width: 100%; }
+  .alert .a-num { font: 500 10.5px var(--sans); color: var(--muted); letter-spacing: 0.1em; padding-top: 4px; }
+  .alert .a-body { display: grid; gap: 6px; min-width: 0; }
+  .alert .msg { font-family: var(--serif); font-style: italic; font-size: 22px; line-height: 1.2; display: block; }
+  .alert .meta { font: 500 10px var(--sans); letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); display: block; }
+  .alert .action { font-family: var(--serif); font-size: 15.5px; color: var(--ink-2); display: block; }
+  button.alert:hover .msg { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+  .alerts-grid { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 56px; }
+
+  .empty { font-family: var(--serif); font-style: italic; font-size: 19px; color: var(--ink-2); padding: 28px 0; }
+  .empty code { font: 13px ui-monospace, Menlo, monospace; font-style: normal; background: var(--raised); padding: 2px 6px; }
+
+  footer { padding: 44px 0; }
+  footer .inner { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: center; }
+
+  #tooltip {
+    position: fixed; z-index: 20; pointer-events: none; display: none; min-width: 150px;
+    background: #141414; color: #f3efe8; border: 1px solid rgba(243, 239, 232, 0.18);
+    padding: 10px 12px; font: 12px var(--sans); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  }
+  #tooltip .t-title { font: 500 10px var(--sans); letter-spacing: 0.2em; text-transform: uppercase; color: #a39a8d; margin-bottom: 6px; }
+  #tooltip .t-row { display: flex; align-items: center; gap: 9px; line-height: 1.7; }
+  #tooltip .t-row b { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 44px; }
+  #tooltip .t-row span { color: #bdb5a8; }
+  #tooltip .t-row i { width: 14px; height: 2px; display: inline-block; flex: none; }
+
+  @media (max-width: 960px) {
+    .hero { grid-template-columns: 1fr; }
+    .hero-left { padding: 48px 24px 36px; }
+    .hero-right { padding: 40px 24px; }
+    .split, .alerts-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+    .inner { padding: 0 24px; }
+    section.block { padding: 60px 0; }
+  }
+  @media (max-width: 640px) {
+    .inner { padding: 0 16px; }
+    .hero-left, .hero-right { padding-left: 16px; padding-right: 16px; }
+    nav.top .inner { grid-template-columns: auto 1fr; }
+    nav.top .links { display: none; }
+    nav.top .brand { font-size: 11px; letter-spacing: 0.2em; }
+    .kpis { gap: 24px 20px; }
+    .event-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hide-sm { display: none; }
+    .ev-dot { display: inline-block; }
+    td { padding: 12px 6px; }
+    th { padding: 0 6px 10px; }
+    .alert { grid-template-columns: 30px minmax(0, 1fr); }
+    .alert .msg { font-size: 19px; }
+  }
+</style>
+</head>
+<body>
+<nav class="top on-dark">
+  <div class="inner">
+    <div class="links eyebrow"><a href="#planners">Planners</a><a href="#event">Event</a><a href="#alerts-section">Alerts</a></div>
+    <div class="brand">EventOps Live</div>
+    <div class="status eyebrow" id="status" role="status"><span class="dot"></span><span>Connecting</span></div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-left on-light">
+    <h1 class="display"><span>Live</span><em>Event</em><span>Operations</span></h1>
+    <div class="hero-sign">
+      <div class="signature">Every moment, measured</div>
+      <div class="eyebrow">Sensors · Streaming<br>Alerts · Since <span id="since">today</span></div>
+    </div>
+  </div>
+  <div class="hero-right on-dark">
+    <div class="eyebrow">At this moment</div>
+    <div class="kpis" id="kpis" aria-label="Platform totals"></div>
+  </div>
+</header>
+
+<section class="band on-dark">
+  <div class="inner">
+    <p class="tagline">Every guest, every zone, every second.</p>
+    <div class="eyebrow">Records ingested per minute · all planners · last 30 minutes</div>
+    <div class="chart" id="throughput"></div>
+    <details class="table-view" id="throughput-table"><summary>View as table</summary></details>
+  </div>
+</section>
+
+<section class="block on-light" id="planners">
+  <div class="inner split">
+    <div>
+      <div class="eyebrow">Who we serve</div>
+      <h2 class="display display-md">Planners</h2>
+      <p class="lede">Each planner is a tenant of the platform and sees only their own events.</p>
+      <ol class="numbered" id="planner-list"></ol>
+    </div>
+    <div>
+      <div class="eyebrow" id="events-title">Their events</div>
+      <div class="table-scroll" id="events" style="margin-top:20px"></div>
+    </div>
+  </div>
+</section>
+
+<section class="block on-dark" id="event"><div class="inner" id="event-body"></div></section>
+
+<section class="block on-light" id="alerts-section">
+  <div class="inner alerts-grid">
+    <div>
+      <div class="eyebrow">In real time</div>
+      <h2 class="display display-md">Alerts</h2>
+      <p class="lede">Published to an SNS topic by the stream processor, queued in SQS and stored by the alert worker.</p>
+    </div>
+    <div id="alerts"></div>
+  </div>
+</section>
+
+<footer class="on-dark">
+  <div class="inner">
+    <div class="eyebrow">Kinesis → Lambda → DynamoDB · Timestream · Redshift · S3 → Grafana</div>
+    <span id="grafana-link"></span>
+  </div>
+</footer>
+<div id="tooltip" role="tooltip"></div>
+
+<script>
+const CONFIG = {{DASHBOARD_CONFIG}};
+const REFRESH_MS = 5000;
+const SERIES = ["--s1", "--s2", "--s3", "--s4", "--s5"];
+const state = { planner: null, event: null, overview: null, events: [], detail: null, lastOk: null, error: null, hover: {} };
+
+// ---------- DOM helpers (all API text goes through textContent) ----------
+function el(tag, props = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (v == null || v === false) continue;
+    if (k === "class") node.className = v;
+    else if (k === "text") node.textContent = v;
+    else if (k === "style") node.style.cssText = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of children.flat()) {
+    if (c == null || c === false) continue;
+    node.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  }
+  return node;
+}
+const SVG_NS = "http://www.w3.org/2000/svg";
+function svg(tag, attrs = {}, text) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) if (v != null) node.setAttribute(k, v);
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+// ---------- formatting ----------
+const nf = new Intl.NumberFormat();
+function compact(n) {
+  n = Number(n) || 0;
+  if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, "") + "M";
+  if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(n >= 1e4 ? 0 : 1).replace(/\.0$/, "") + "K";
+  return nf.format(Math.round(n));
+}
+const minuteDate = (m) => new Date(m + ":00Z");
+const hhmm = (d) => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+function ago(iso) {
+  if (!iso) return "never";
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return `${Math.round(s)} s ago`;
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  return `${Math.round(s / 3600)} h ago`;
+}
+const titleCase = (s) => (s || "").replace(/[-_]/g, " ").replace(/^./, (c) => c.toUpperCase());
+const pad = (i) => String(i + 1).padStart(2, "0");
+
+// ---------- status (always icon + label, never color alone) ----------
+const SEVERITY = { critical: "Critical", warning: "Warning", ok: "Normal" };
+function severityIcon(level) {
+  const s = svg("svg", { width: 10, height: 10, viewBox: "0 0 12 12", "aria-hidden": "true" });
+  if (level === "critical") s.append(svg("path", { d: "M6 0.8 11.2 6 6 11.2 0.8 6Z", fill: "var(--critical)" }));
+  else if (level === "warning") s.append(svg("path", { d: "M6 1 11.4 10.6H0.6Z", fill: "var(--warning)" }));
+  else s.append(svg("circle", { cx: 6, cy: 6, r: 4, fill: "none", stroke: "var(--ok)", "stroke-width": 1.5 }));
+  return s;
+}
+const sevBadge = (level) => el("span", { class: "sev" }, severityIcon(level), SEVERITY[level] ?? level);
+const occupancyLevel = (ratio) => (ratio >= 1 ? "critical" : ratio >= CONFIG.occupancy_warning_ratio ? "warning" : "ok");
+const meterFill = (level) => (level === "ok" ? "var(--accent)" : `var(--${level})`);
+function meter(ratio, level = "ok") {
+  const pct = Math.max(0, Math.min(1, ratio || 0)) * 100;
+  return el("div", { class: "meter", style: `--fill:${meterFill(level)}`, role: "meter", "aria-valuenow": Math.round(pct), "aria-valuemin": 0, "aria-valuemax": 100 },
+    el("i", { style: `width:${pct}%` }));
+}
+
+// ---------- tooltip ----------
+const tip = document.getElementById("tooltip");
+function showTip(x, y, title, rows) {
+  tip.replaceChildren(el("div", { class: "t-title", text: title }),
+    ...rows.map((r) => el("div", { class: "t-row" }, r.color ? el("i", { style: `background:${r.color}` }) : null, el("b", { text: r.value }), el("span", { text: r.label }))));
+  tip.style.display = "block";
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  const left = x + 16 + w > window.innerWidth ? x - w - 16 : x + 16;
+  tip.style.left = `${Math.max(8, left)}px`;
+  tip.style.top = `${Math.max(8, Math.min(window.innerHeight - h - 8, y - h / 2))}px`;
+}
+const hideTip = () => { tip.style.display = "none"; };
+
+// ---------- charts ----------
+function niceMax(v) {
+  if (v <= 0) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  for (const m of [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (m * p >= v) return m * p;
+  return 10 * p;
+}
+function barPath(x, y, w, h, r) {
+  r = Math.min(r, h, w / 2);
+  return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+}
+function axes(root, m, iw, ih, max, fmt) {
+  for (const t of [0, max / 2, max]) {
+    const y = m.t + ih - (t / max) * ih;
+    root.append(svg("line", { x1: m.l, x2: m.l + iw, y1: y, y2: y, stroke: t === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1, "shape-rendering": "crispEdges" }));
+    root.append(svg("text", { x: m.l - 8, y: y + 4, "text-anchor": "end", class: "tick" }, fmt(t)));
+  }
+}
+
+// Columns: one series, per-bar hover target (the full slot, not just the painted bar).
+function columnChart(host, points, { label, height = 200 }) {
+  const W = Math.max(280, host.clientWidth), H = height, m = { t: 10, r: 6, b: 26, l: 40 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const max = niceMax(Math.max(...points.map((p) => p.value), 1));
+  const slot = iw / points.length, bw = Math.max(2, Math.min(18, slot - 2));
+  const root = svg("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": label });
+  axes(root, m, iw, ih, max, compact);
+
+  const bars = points.map((p, i) => {
+    const h = (p.value / max) * ih, x = m.l + i * slot + (slot - bw) / 2;
+    const bar = svg("path", { d: h > 0 ? barPath(x, m.t + ih - h, bw, h, 2) : "", fill: "var(--s1)", opacity: p.partial ? 0.45 : 1 });
+    root.append(bar);
+    if (i % 5 === (points.length - 1) % 5) root.append(svg("text", { x: x + bw / 2, y: H - 6, "text-anchor": "middle", class: "tick" }, p.label));
+    return bar;
+  });
+
+  const show = (i, evt) => {
+    bars.forEach((b, j) => b.setAttribute("opacity", j === i ? 1 : points[j].partial ? 0.3 : 0.6));
+    const p = points[i], box = host.getBoundingClientRect();
+    showTip(evt?.clientX ?? box.left + m.l + (i + 0.5) * slot, evt?.clientY ?? box.top + m.t + ih / 2, p.title, p.rows);
+  };
+  const clear = () => { bars.forEach((b, j) => b.setAttribute("opacity", points[j].partial ? 0.45 : 1)); hideTip(); };
+  points.forEach((p, i) => {
+    const hit = svg("rect", { x: m.l + i * slot, y: m.t, width: slot, height: ih, fill: "transparent" });
+    hit.addEventListener("pointermove", (e) => { state.hover[host.id] = i; show(i, e); });
+    hit.addEventListener("pointerleave", () => { delete state.hover[host.id]; clear(); });
+    root.append(hit);
+  });
+  keyboardNav(host, points.length, show, clear);
+  host.replaceChildren(root);
+  if (state.hover[host.id] != null && state.hover[host.id] < points.length) show(state.hover[host.id]);
+}
+
+// Lines: several series on one axis, crosshair snaps to the nearest minute, one tooltip lists every series.
+function lineChart(host, xs, series, { label, yMax, refs = [], unit = "", height = 240 }) {
+  const W = Math.max(280, host.clientWidth), H = height, m = { t: 12, r: 14, b: 26, l: 40 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const step = xs.length > 1 ? iw / (xs.length - 1) : iw;
+  const X = (i) => m.l + i * step, Y = (v) => m.t + ih - (v / yMax) * ih;
+  const root = svg("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": label });
+  axes(root, m, iw, ih, yMax, (t) => `${Math.round(t)}${unit}`);
+  for (const r of refs) {
+    const y = Y(r.value);
+    root.append(svg("line", { x1: m.l, x2: m.l + iw, y1: y, y2: y, stroke: "var(--muted)", "stroke-width": 1, "stroke-dasharray": "2 4" }));
+    root.append(svg("text", { x: m.l + iw, y: y - 5, "text-anchor": "end", class: "tick" }, r.label));
+  }
+  xs.forEach((x, i) => { if (i % 5 === (xs.length - 1) % 5) root.append(svg("text", { x: X(i), y: H - 6, "text-anchor": "middle", class: "tick" }, x.label)); });
+
+  for (const s of series) {
+    let d = "", pen = false, last = null;
+    s.values.forEach((v, i) => {
+      if (v == null) { pen = false; return; }
+      d += `${pen ? "L" : "M"}${X(i).toFixed(1)},${Y(Math.min(v, yMax)).toFixed(1)}`;
+      pen = true; last = i;
+    });
+    root.append(svg("path", { d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    if (last != null) root.append(svg("circle", { cx: X(last), cy: Y(Math.min(s.values[last], yMax)), r: 4, fill: s.color, stroke: "var(--bg)", "stroke-width": 2 }));
+  }
+
+  const cross = svg("line", { y1: m.t, y2: m.t + ih, stroke: "var(--ink-2)", "stroke-width": 1, visibility: "hidden" });
+  root.append(cross);
+  const show = (i, evt) => {
+    cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i)); cross.setAttribute("visibility", "visible");
+    const box = host.getBoundingClientRect();
+    const rows = series.map((s) => ({ color: s.color, value: s.values[i] == null ? "–" : `${Math.round(s.values[i])}${unit}`, label: s.name }));
+    showTip(evt?.clientX ?? box.left + X(i), evt?.clientY ?? box.top + m.t + ih / 2, xs[i].title, rows);
+  };
+  const clear = () => { cross.setAttribute("visibility", "hidden"); hideTip(); };
+  const overlay = svg("rect", { x: m.l - step / 2, y: m.t, width: iw + step, height: ih, fill: "transparent" });
+  const indexAt = (e) => Math.max(0, Math.min(xs.length - 1, Math.round((e.clientX - host.getBoundingClientRect().left - m.l) / step)));
+  overlay.addEventListener("pointermove", (e) => { const i = indexAt(e); state.hover[host.id] = i; show(i, e); });
+  overlay.addEventListener("pointerleave", () => { delete state.hover[host.id]; clear(); });
+  root.append(overlay);
+  keyboardNav(host, xs.length, show, clear);
+  host.replaceChildren(root);
+  if (state.hover[host.id] != null && state.hover[host.id] < xs.length) show(state.hover[host.id]);
+}
+
+// Same details on keyboard focus as on hover: arrows move through the points.
+function keyboardNav(host, n, show, clear) {
+  host.tabIndex = 0;
+  host.onfocus = () => { state.hover[host.id] ??= n - 1; show(state.hover[host.id]); };
+  host.onblur = () => { delete state.hover[host.id]; clear(); };
+  host.onkeydown = (e) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const i = Math.max(0, Math.min(n - 1, (state.hover[host.id] ?? n - 1) + (e.key === "ArrowRight" ? 1 : -1)));
+    state.hover[host.id] = i; show(i);
+  };
+}
+
+function tableView(details, headers, rows) {
+  const open = details.open;
+  details.replaceChildren(el("summary", { text: "View as table" }),
+    el("div", { class: "table-scroll" }, el("table", {},
+      el("thead", {}, el("tr", {}, headers.map((h, i) => el("th", { class: i ? "num" : null, text: h })))),
+      el("tbody", {}, rows.map((r) => el("tr", {}, r.map((c, i) => el("td", { class: i ? "num" : null, text: c }))))))));
+  details.open = open;
+}
+
+// ---------- data ----------
+async function getJSON(path) {
+  const res = await fetch(path, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
+  return res.json();
+}
+
+function readHash() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  state.planner = h.get("planner"); state.event = h.get("event");
+}
+function writeHash() {
+  const h = new URLSearchParams();
+  if (state.planner) h.set("planner", state.planner);
+  if (state.event) h.set("event", state.event);
+  history.replaceState(null, "", `#${h}`);
+}
+
+let timer = null;
+async function refresh() {
+  clearTimeout(timer);
+  try {
+    const overview = await getJSON("api/overview");
+    state.overview = overview;
+    if (!overview.planners.some((p) => p.planner_id === state.planner)) state.planner = overview.planners[0]?.planner_id ?? null;
+    state.events = state.planner ? (await getJSON(`api/planners/${encodeURIComponent(state.planner)}/events`)).events : [];
+    if (!state.events.some((e) => e.event_id === state.event)) state.event = state.events[0]?.event_id ?? null;
+    state.detail = state.event ? await getJSON(`api/events/${encodeURIComponent(state.event)}`) : null;
+    state.error = null;
+    state.lastOk = new Date();
+    writeHash();
+  } catch (err) {
+    state.error = err.message;
+  }
+  render();
+  timer = setTimeout(refresh, REFRESH_MS);
+}
+
+function select(planner, event, scrollTo) {
+  state.planner = planner; state.event = event; state.detail = null;
+  writeHash();
+  refresh().then(() => { if (scrollTo) document.getElementById(scrollTo)?.scrollIntoView(); });
+}
+
+// ---------- render ----------
+function render() {
+  renderStatus();
+  if (!state.overview) return;
+  renderKpis();
+  renderThroughput();
+  renderPlanners();
+  renderEvents();
+  renderEvent();
+  renderAlerts(document.getElementById("alerts"), state.overview.alerts, true);
+}
+
+function renderStatus() {
+  const box = document.getElementById("status");
+  const live = state.overview?.throughput.slice(-2).some((t) => t.records > 0);
+  const dot = el("span", { class: `dot ${state.error ? "err" : live ? "live" : ""}` });
+  const text = state.error ? "API unreachable · retrying"
+    : state.lastOk ? `${live ? "Receiving data" : "Waiting for data"} · ${state.lastOk.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Connecting";
+  box.replaceChildren(dot, el("span", { text }));
+  if (state.error) box.title = state.error;
+}
+
+function kpi(label, value, hint) {
+  return el("div", { class: "kpi" }, el("div", { class: "eyebrow", text: label }), el("div", { class: "value", text: value }), el("div", { class: "hint", text: hint }));
+}
+
+function renderKpis() {
+  const { throughput, planners } = state.overview;
+  const total = throughput.reduce((a, t) => a + t.records, 0);
+  const lastFull = throughput.at(-2)?.records ?? 0;
+  const alerts = throughput.reduce((a, t) => a + t.alerts, 0);
+  const invalid = throughput.reduce((a, t) => a + t.invalid, 0);
+  const events = planners.reduce((a, p) => a + p.events, 0);
+  const live = planners.reduce((a, p) => a + p.live_events, 0);
+  document.getElementById("kpis").replaceChildren(
+    kpi("Records · 30 min", compact(total), invalid ? `${nf.format(invalid)} invalid, skipped` : "every record valid"),
+    kpi("Per minute", compact(lastFull), `≈ ${nf.format(Math.round(lastFull / 60))} per second`),
+    kpi("Live events", nf.format(live), `of ${nf.format(events)}, across ${planners.length} planners`),
+    kpi("Alerts · 30 min", nf.format(alerts), "capacity, cold chain, comfort, noise"),
+  );
+  const first = throughput.find((t) => t.records > 0);
+  document.getElementById("since").textContent = first ? hhmm(minuteDate(first.minute)) : "today";
+}
+
+function renderThroughput() {
+  const t = state.overview.throughput;
+  const points = t.map((p, i) => {
+    const d = minuteDate(p.minute), partial = i === t.length - 1;
+    return {
+      value: p.records, partial, label: hhmm(d),
+      title: `${hhmm(d)}${partial ? " · in progress" : ""}`,
+      rows: [{ color: "var(--s1)", value: nf.format(p.records), label: "records" },
+             { value: nf.format(p.alerts), label: "alerts" }, { value: nf.format(p.invalid), label: "invalid" }],
+    };
+  });
+  columnChart(document.getElementById("throughput"), points, { label: "Records ingested per minute, last 30 minutes" });
+  tableView(document.getElementById("throughput-table"), ["Minute", "Records", "Alerts", "Invalid"],
+    [...t].reverse().map((p) => [hhmm(minuteDate(p.minute)), nf.format(p.records), nf.format(p.alerts), nf.format(p.invalid)]));
+}
+
+function renderPlanners() {
+  const box = document.getElementById("planner-list");
+  const planners = state.overview.planners;
+  if (!planners.length) {
+    box.replaceChildren(el("li", { class: "empty" }, "No planners yet. Start the sensor fleet with ", el("code", { text: "make simulate" }), "."));
+    return;
+  }
+  box.replaceChildren(...planners.map((p, i) => el("li", {}, el("button", {
+    class: "planner", "aria-pressed": String(p.planner_id === state.planner), onclick: () => select(p.planner_id, null),
+  }, el("span", { class: "num", text: pad(i) }), el("span", { class: "name", text: p.planner_name || p.planner_id }),
+     el("span", { class: "meta", text: `${p.events} events · ${p.live_events} live · ${compact(p.checked_in)} guests in` })))));
+  const current = planners.find((p) => p.planner_id === state.planner);
+  document.getElementById("events-title").textContent = current ? `Events · ${current.planner_name || current.planner_id}` : "Their events";
+}
+
+function renderEvents() {
+  const box = document.getElementById("events");
+  if (!state.events.length) { box.replaceChildren(); return; }
+  box.replaceChildren(el("table", {},
+    el("thead", {}, el("tr", {}, el("th", { text: "Event" }), el("th", { class: "hide-sm", text: "Status" }), el("th", { class: "hide-sm", text: "Guests" }),
+      el("th", { class: "num", text: "Alerts" }), el("th", { class: "num hide-sm", text: "Last reading" }))),
+    el("tbody", {}, state.events.map((e) => {
+      const ratio = e.guests_expected ? (e.checked_in || 0) / e.guests_expected : 0;
+      return el("tr", { class: "pick", "aria-selected": String(e.event_id === state.event), tabindex: 0,
+        onclick: () => select(state.planner, e.event_id, "event"), onkeydown: (k) => { if (k.key === "Enter") select(state.planner, e.event_id, "event"); } },
+        el("td", {}, el("div", { class: "ev-name" }, el("span", { class: `dot ev-dot ${e.live ? "live" : ""}`, title: e.live ? "Live" : "Ended" }), e.event_name || e.event_id),
+          el("div", { class: "ev-sub", text: `${titleCase(e.event_type)} · ${e.venue || "venue to be confirmed"}` })),
+        el("td", { class: "hide-sm" }, el("span", { class: "tag" }, el("span", { class: `dot ${e.live ? "live" : ""}` }), e.live ? "Live" : "Ended")),
+        el("td", { class: "hide-sm", style: "min-width:130px" }, el("div", { class: "small-num", text: `${nf.format(e.checked_in || 0)} / ${nf.format(e.guests_expected || 0)}` }), meter(ratio)),
+        el("td", { class: "num", text: nf.format(e.alerts_total || 0) }),
+        el("td", { class: "num hide-sm small-num", text: ago(e.last_seen) }));
+    }))));
+}
+
+function zoneLevel(z) {
+  const levels = [];
+  if (z.capacity && z.occupancy != null) levels.push(occupancyLevel(z.occupancy / z.capacity));
+  if (z.temperature_c != null) {
+    const limit = z.zone === "cold-room" ? CONFIG.cold_room_max_c : CONFIG.comfort_max_c;
+    levels.push(z.temperature_c > limit ? (z.zone === "cold-room" ? "critical" : "warning") : "ok");
+  }
+  if (z.noise_db != null) levels.push(z.noise_db >= CONFIG.noise_critical_db ? "critical" : z.noise_db >= CONFIG.noise_warning_db ? "warning" : "ok");
+  return levels.includes("critical") ? "critical" : levels.includes("warning") ? "warning" : "ok";
+}
+
+function renderEvent() {
+  const box = document.getElementById("event-body");
+  const d = state.detail;
+  if (!d) { box.replaceChildren(el("div", { class: "empty", text: "Choose an event to see its zones." })); return; }
+  const e = d.event;
+  const zoneOrder = (e.zones || []).map((z) => z.zone);
+  d.zones.forEach((z) => { if (!zoneOrder.includes(z.zone)) zoneOrder.push(z.zone); });
+  const chartZones = zoneOrder.filter((z) => z !== "cold-room");
+  const color = (zone) => (zone === "cold-room" ? "var(--muted)" : `var(${SERIES[chartZones.indexOf(zone) % SERIES.length]})`);
+  const ratio = e.guests_expected ? (e.checked_in || 0) / e.guests_expected : 0;
+
+  const stat = (label, value, extra) => el("div", {}, el("div", { class: "eyebrow", text: label }), el("div", { class: "value", text: value }), extra);
+  const zones = d.zones.map((z, i) => {
+    const occ = z.capacity ? z.occupancy / z.capacity : 0;
+    return el("div", { class: "zone" },
+      el("div", { class: "z-head" }, el("span", { class: "z-num", text: pad(i) }), el("span", { class: "swatch", style: `background:${color(z.zone)}` }),
+        el("span", { class: "z-name", text: titleCase(z.zone) }), el("span", { class: "z-sev" }, sevBadge(zoneLevel(z)))),
+      el("div", {}, el("div", { class: "row" }, el("span", { text: "People" }), el("b", { text: `${nf.format(z.occupancy ?? 0)} / ${nf.format(z.capacity ?? 0)}` })),
+        meter(occ, occupancyLevel(occ))),
+      el("div", { class: "row" }, el("span", { text: "Temperature" }), el("b", { text: z.temperature_c != null ? `${Number(z.temperature_c).toFixed(1)} °C` : "–" })),
+      z.zone === "cold-room" ? null : el("div", { class: "row" }, el("span", { text: "Noise" }), el("b", { text: z.noise_db != null ? `${Math.round(z.noise_db)} dB` : "–" })));
+  });
+
+  // Occupancy as % of each zone's capacity, so a 240-seat ballroom and a 60-person bar share one axis.
+  const capacity = Object.fromEntries((e.zones || []).map((z) => [z.zone, z.capacity]));
+  const now = Date.now();
+  const minutes = Array.from({ length: 30 }, (_, i) => new Date(Math.floor(now / 60000) * 60000 - (29 - i) * 60000));
+  const byKey = new Map(minutes.map((m, i) => [m.toISOString().slice(0, 16), i]));
+  const plotted = chartZones.filter((z) => capacity[z]);
+  const series = plotted.map((z) => ({ name: titleCase(z), color: color(z), values: new Array(30).fill(null) }));
+  for (const p of d.series) {
+    const i = byKey.get(p.minute), s = plotted.indexOf(p.zone);
+    if (i != null && s >= 0 && p.occupancy != null) series[s].values[i] = (100 * p.occupancy) / capacity[p.zone];
+  }
+  const peak = Math.max(110, ...series.flatMap((s) => s.values.filter((v) => v != null)));
+  const xs = minutes.map((m) => ({ label: hhmm(m), title: hhmm(m) }));
+
+  const chartHost = el("div", { class: "chart", id: "occupancy" });
+  const tableHost = el("details", { class: "table-view", id: "occupancy-table" });
+  if (document.getElementById("occupancy-table")?.open) tableHost.open = true;
+  const alertsHost = el("div");
+
+  box.replaceChildren(
+    el("div", { class: "event-head" },
+      el("div", {},
+        el("div", { class: "eyebrow", text: `The event · ${e.planner_name || e.planner_id}` }),
+        el("h2", { class: "display", text: e.event_name || e.event_id }),
+        el("p", { class: "lede", text: `${titleCase(e.event_type)} at ${e.venue || "a venue to be confirmed"}${e.city ? ", " + e.city : ""}` })),
+      el("span", { class: "tag" }, el("span", { class: `dot ${e.live ? "live" : ""}` }), e.live ? "Live now" : `Last reading ${ago(e.last_seen)}`)),
+    el("div", { class: "event-stats" },
+      stat("Guests checked in", `${nf.format(e.checked_in || 0)} / ${nf.format(e.guests_expected || 0)}`, meter(ratio)),
+      stat("Readings", compact(e.readings || 0)),
+      stat("Alerts", nf.format(e.alerts_total || 0), el("div", { class: "lede", style: "font-size:15px;margin:4px 0 0", text: `${nf.format(e.alerts_critical || 0)} critical` })),
+      stat("Last reading", ago(e.last_seen))),
+    el("div", { class: "eyebrow", style: "margin-bottom:14px", text: "The zones" }),
+    el("div", { class: "zones" }, zones),
+    el("h3", { class: "sub-title", text: "Occupancy" }),
+    el("p", { class: "lede", style: "margin-top:4px", text: "Percentage of each zone's capacity, minute by minute." }),
+    el("div", { class: "legend" }, series.map((s) => el("span", {}, el("i", { style: `background:${s.color}` }), s.name))),
+    chartHost, tableHost,
+    el("h3", { class: "sub-title", style: "margin-top:56px;margin-bottom:16px", text: "This event's alerts" }),
+    alertsHost);
+
+  lineChart(chartHost, xs, series, { label: "Zone occupancy as a percentage of capacity", yMax: niceMax(peak), unit: "%",
+    refs: [{ value: CONFIG.occupancy_warning_ratio * 100, label: `${Math.round(CONFIG.occupancy_warning_ratio * 100)}% · warning` }, { value: 100, label: "capacity" }] });
+  tableView(tableHost, ["Minute", ...series.map((s) => s.name)],
+    minutes.map((m, i) => [hhmm(m), ...series.map((s) => (s.values[i] == null ? "–" : `${Math.round(s.values[i])}%`))]).reverse());
+  renderAlerts(alertsHost, d.alerts, false);
+}
+
+function renderAlerts(box, alerts, linkToEvent) {
+  if (!alerts.length) { box.replaceChildren(el("div", { class: "empty", text: "No alerts. Every zone is within its limits." })); return; }
+  box.replaceChildren(el("ol", { class: "alerts" }, alerts.map((a, i) => {
+    const body = el("span", { class: "a-body" },
+      el("span", {}, sevBadge(a.severity)),
+      el("span", { class: "msg", text: a.message }),
+      el("span", { class: "meta", text: `${a.event_name || a.event_id} · ${titleCase(a.zone)} · ${ago(a.detected_at)}` }),
+      a.recommended_action ? el("span", { class: "action", text: `→ ${a.recommended_action}` }) : null);
+    const num = el("span", { class: "a-num", text: pad(i) });
+    return el("li", {}, linkToEvent
+      ? el("button", { class: "alert", onclick: () => select(a.planner_id, a.event_id, "event"), title: "Open this event" }, num, body)
+      : el("div", { class: "alert" }, num, body));
+  })));
+}
+
+// ---------- start ----------
+if (CONFIG.grafana_url) {
+  document.getElementById("grafana-link").append(
+    el("a", { class: "link-arrow", href: CONFIG.grafana_url, target: "_blank", rel: "noopener", text: "Open the Grafana dashboards" }));
+}
+readHash();
+refresh();
+let resizeTimer;
+window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 150); });
+</script>
+</body>
+</html>

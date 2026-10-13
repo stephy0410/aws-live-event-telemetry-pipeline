@@ -1,0 +1,648 @@
+{
+  "uid": "eventops-live",
+  "title": "EventOps · Live telemetry (Timestream)",
+  "description": "Kinesis -> Lambda -> Amazon Timestream. Near real time, one point per sensor reading.",
+  "tags": [
+    "eventops",
+    "timestream"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "10s",
+      "30s",
+      "1m",
+      "5m"
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "event",
+        "label": "Event",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-timestream-datasource",
+          "uid": "timestream"
+        },
+        "query": "SELECT DISTINCT event_id FROM $__database.$__table WHERE time > ago(2h) ORDER BY event_id",
+        "definition": "SELECT DISTINCT event_id FROM $__database.$__table WHERE time > ago(2h) ORDER BY event_id",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": false,
+        "multi": false,
+        "current": {},
+        "options": []
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "EventOps dashboards",
+      "type": "dashboards",
+      "tags": [
+        "eventops"
+      ],
+      "asDropdown": true
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Readings in range",
+      "description": "Sensor readings stored in Timestream for the selected time range",
+      "datasource": {
+        "type": "grafana-timestream-datasource",
+        "uid": "timestream"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-timestream-datasource",
+            "uid": "timestream"
+          },
+          "rawQuery": "SELECT count(*) AS readings FROM $__database.$__table WHERE $__timeFilter",
+          "format": 0
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#C9A86A"
+          },
+          "custom": {},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Readings per second",
+      "description": "Average over the last minute",
+      "datasource": {
+        "type": "grafana-timestream-datasource",
+        "uid": "timestream"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-timestream-datasource",
+            "uid": "timestream"
+          },
+          "rawQuery": "SELECT count(*) / 60.0 AS per_second FROM $__database.$__table WHERE time > ago(1m)",
+          "format": 0
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#C9A86A"
+          },
+          "custom": {},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Live events",
+      "description": "Events with at least one reading in the last 2 minutes",
+      "datasource": {
+        "type": "grafana-timestream-datasource",
+        "uid": "timestream"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-timestream-datasource",
+            "uid": "timestream"
+          },
+          "rawQuery": "SELECT count(DISTINCT event_id) AS live FROM $__database.$__table WHERE time > ago(2m)",
+          "format": 0
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#E8E2D6"
+          },
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Guests checked in · $event",
+      "description": "All check-ins of the selected event",
+      "datasource": {
+        "type": "grafana-timestream-datasource",
+        "uid": "timestream"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-timestream-datasource",
+            "uid": "timestream"
+          },
+          "rawQuery": "SELECT sum(measure_value::double) AS guests FROM $__database.$__table WHERE measure_name = 'checkin' AND event_id = '$event' AND time > ago(1d)",
+          "format": 0
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#E8E2D6"
+          },
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Readings per minute by planner",
+      "description": "Platform throughput per tenant: how much telemetry each planner's events produce",
+      "datasource": {
+        "type": "grafana-timestream-datasource",
+        "uid": "timestream"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-timestream-datasource",
+            "uid": "timestream"
+          },
+          "rawQuery": "SELECT planner_id, CREATE_TIME_SERIES(t, n) AS readings\nFROM (\n  SELECT planner_id, bin(time, 1m) AS t, count(*) AS n\n  FROM $__database.$__table\n  WHERE $__timeFilter\n  GROUP BY planner_id, bin(time, 1m)\n)\nGROUP BY planner_id\nORDER BY planner_id",
+          "format": 0
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth",
+            "gradientMode": "opacity"
+          },
+          "unit": "short",
+          "displayName": "${__field.labels.planner_id}"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "row",
+      "title": "Event · $event",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Occupancy by zone",
+      "description": "People in each zone (door counters), averaged per interval",
+      "datasource": {
+        "type": "grafana-timestream-datasource",
+        "uid": "timestream"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-timestream-datasource",
+            "uid": "timestream"
+          },
+          "rawQuery": "SELECT zone, CREATE_TIME_SERIES(t, v) AS occupancy\nFROM (\n  SELECT zone, bin(time, $__interval_ms) AS t, avg(measure_value::double) AS v\n  FROM $__database.$__table\n  WHERE $__timeFilter AND measure_name = 'occupancy' AND event_id = '$event' AND zone <> 'cold-room'\n  GROUP BY zone, bin(time, $__interval_ms)\n)\nGROUP BY zone\nORDER BY zone",
+          "format": 0
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth",
+            "gradientMode": "opacity"
+          },
+          "unit": "short",
+          "displayName": "${__field.labels.zone}"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Temperature by zone",
+      "description": "The cold-room line must stay under the food-safety limit",
+      "datasource": {
+        "type": "grafana-timestream-datasource",
+        "uid": "timestream"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-timestream-datasource",
+            "uid": "timestream"
+          },
+          "rawQuery": "SELECT zone, CREATE_TIME_SERIES(t, v) AS temperature_c\nFROM (\n  SELECT zone, bin(time, $__interval_ms) AS t, avg(measure_value::double) AS v\n  FROM $__database.$__table\n  WHERE $__timeFilter AND measure_name = 'temperature_c' AND event_id = '$event'\n  GROUP BY zone, bin(time, $__interval_ms)\n)\nGROUP BY zone\nORDER BY zone",
+          "format": 0
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth",
+            "gradientMode": "opacity",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "unit": "celsius",
+          "displayName": "${__field.labels.zone}",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#C9A86A",
+                "value": null
+              },
+              {
+                "color": "#C98B8B",
+                "value": __COLD_ROOM_MAX_C__
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Noise by zone",
+      "description": "Warning and venue-limit levels drawn as lines",
+      "datasource": {
+        "type": "grafana-timestream-datasource",
+        "uid": "timestream"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-timestream-datasource",
+            "uid": "timestream"
+          },
+          "rawQuery": "SELECT zone, CREATE_TIME_SERIES(t, v) AS noise_db\nFROM (\n  SELECT zone, bin(time, $__interval_ms) AS t, avg(measure_value::double) AS v\n  FROM $__database.$__table\n  WHERE $__timeFilter AND measure_name = 'noise_db' AND event_id = '$event' AND zone <> 'cold-room'\n  GROUP BY zone, bin(time, $__interval_ms)\n)\nGROUP BY zone\nORDER BY zone",
+          "format": 0
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth",
+            "gradientMode": "opacity",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "unit": "dB",
+          "displayName": "${__field.labels.zone}",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#C9A86A",
+                "value": null
+              },
+              {
+                "color": "#A39382",
+                "value": __NOISE_WARNING_DB__
+              },
+              {
+                "color": "#C98B8B",
+                "value": __NOISE_CRITICAL_DB__
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Check-ins per minute",
+      "description": "Guests scanned at the entrance",
+      "datasource": {
+        "type": "grafana-timestream-datasource",
+        "uid": "timestream"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 22,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-timestream-datasource",
+            "uid": "timestream"
+          },
+          "rawQuery": "SELECT 'check-ins' AS series, CREATE_TIME_SERIES(t, n) AS guests\nFROM (\n  SELECT bin(time, 1m) AS t, sum(measure_value::double) AS n\n  FROM $__database.$__table\n  WHERE $__timeFilter AND measure_name = 'checkin' AND event_id = '$event'\n  GROUP BY bin(time, 1m)\n)",
+          "format": 0
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#C9A86A"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 2,
+            "fillOpacity": 60,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "smooth",
+            "gradientMode": "opacity"
+          },
+          "unit": "short",
+          "displayName": "Check-ins"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "table",
+      "title": "Latest reading per zone",
+      "description": "Most recent value of every sensor in the selected event",
+      "datasource": {
+        "type": "grafana-timestream-datasource",
+        "uid": "timestream"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 24,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-timestream-datasource",
+            "uid": "timestream"
+          },
+          "rawQuery": "SELECT zone, measure_name AS metric,\n       round(max_by(measure_value::double, time), 1) AS value,\n       max(time) AS reported_at\nFROM $__database.$__table\nWHERE event_id = '$event' AND time > ago(15m) AND measure_name <> 'checkin'\nGROUP BY zone, measure_name\nORDER BY zone, metric",
+          "format": 0
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    }
+  ]
+}
