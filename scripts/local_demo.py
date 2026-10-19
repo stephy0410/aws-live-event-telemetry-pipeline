@@ -140,7 +140,10 @@ def serve(pipeline, port):
                     route, params = key, {n: unquote(v) for n, v in zip(names, match.groups())} or None
                     break
             with pipeline.lock:
-                response = dashboard_api.handler({"routeKey": route, "pathParameters": params}, None)
+                response = dashboard_api.handler({
+                    "routeKey": route, "pathParameters": params,
+                    "headers": {k.lower(): v for k, v in self.headers.items()},
+                }, None)
             body = response["body"].encode()
             self.send_response(response["statusCode"])
             for k, v in response["headers"].items():

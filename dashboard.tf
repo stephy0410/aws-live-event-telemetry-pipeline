@@ -17,7 +17,8 @@ resource "aws_lambda_function" "dashboard" {
 
   environment {
     variables = merge(local.lambda_common_env, local.alert_rule_env, {
-      GRAFANA_URL = local.grafana_url
+      GRAFANA_URL           = local.grafana_url
+      API_CACHE_TTL_SECONDS = tostring(var.api_cache_ttl_seconds)
     })
   }
 
@@ -60,8 +61,8 @@ resource "aws_apigatewayv2_stage" "dashboard" {
 
   # The dashboard is public and read-only; throttling caps what a stray script can cost.
   default_route_settings {
-    throttling_burst_limit = 50
-    throttling_rate_limit  = 20
+    throttling_burst_limit = var.api_throttle_burst_limit
+    throttling_rate_limit  = var.api_throttle_rate_limit
   }
 }
 

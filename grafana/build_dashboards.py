@@ -59,7 +59,10 @@ def timeseries_options(legend="list"):
 
 def line_custom(fill=8, draw="line", bars=False):
     c = {"drawStyle": "bars" if bars else draw, "lineWidth": 2, "fillOpacity": fill, "pointSize": 4,
-         "showPoints": "never", "spanNulls": True, "lineInterpolation": "smooth", "gradientMode": "opacity"}
+         "showPoints": "never", "spanNulls": False, "lineInterpolation": "linear", "gradientMode": "opacity",
+         # CloudWatch returns no point for an idle minute (not a null), so break the line on gaps over
+         # 6 minutes: idle time between runs shows as a gap, the 5-minute warehouse loads stay connected.
+         "insertNulls": 360000}
     return c
 
 

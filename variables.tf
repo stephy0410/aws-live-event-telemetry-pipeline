@@ -190,6 +190,31 @@ variable "warehouse_batching_window_seconds" {
   default     = 300
 }
 
+# --- Web app API (API Gateway -> dashboard Lambda) ---
+
+variable "api_cache_ttl_seconds" {
+  description = "Seconds the dashboard Lambda keeps each API response in memory (0 = no cache). The page refreshes every 5 s, so 5 keeps it live."
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = var.api_cache_ttl_seconds >= 0 && var.api_cache_ttl_seconds <= 60
+    error_message = "api_cache_ttl_seconds must be between 0 and 60."
+  }
+}
+
+variable "api_throttle_rate_limit" {
+  description = "Steady-state requests per second API Gateway lets through (above it: 429). Caps what a stray script can cost."
+  type        = number
+  default     = 100
+}
+
+variable "api_throttle_burst_limit" {
+  description = "Requests API Gateway accepts at once before throttling"
+  type        = number
+  default     = 200
+}
+
 # --- Grafana ---
 
 variable "grafana_instance_type" {

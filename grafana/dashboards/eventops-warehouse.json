@@ -296,9 +296,10 @@
             "fillOpacity": 12,
             "pointSize": 4,
             "showPoints": "never",
-            "spanNulls": true,
-            "lineInterpolation": "smooth",
-            "gradientMode": "opacity"
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "gradientMode": "opacity",
+            "insertNulls": 360000
           },
           "unit": "short",
           "displayName": "${__field.labels.event_type}"
@@ -476,9 +477,10 @@
             "fillOpacity": 0,
             "pointSize": 4,
             "showPoints": "never",
-            "spanNulls": true,
-            "lineInterpolation": "smooth",
+            "spanNulls": false,
+            "lineInterpolation": "linear",
             "gradientMode": "opacity",
+            "insertNulls": 360000,
             "thresholdsStyle": {
               "mode": "line"
             }

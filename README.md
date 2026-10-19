@@ -58,7 +58,7 @@ flowchart LR
 | **Redshift** | Warehouse: per-minute aggregates and an `events` dimension, for history and comparisons in Grafana. Provisioned `ra3.large` in Academy, Serverless elsewhere. |
 | **Timestream** (optional) | Time-series store: every reading, for a live Grafana dashboard. AWS Academy denies it (see below). |
 | **Firehose → S3 → Glue → Athena** | Data lake with every raw record, partitioned by hour (partition projection, no crawler). Four saved queries. |
-| **API Gateway + Lambda** | Read-only JSON API and the planner-facing web app. |
+| **API Gateway + Lambda** | Read-only JSON API and the planner-facing web app, with an in-memory read cache (see below). |
 | **Grafana OSS on EC2** | The required dashboard tool. Data sources and dashboards are provisioned at boot, and AWS access comes from the instance profile, so no keys are stored. |
 | **CloudWatch** | Logs, AWS metrics and custom metrics emitted with Embedded Metric Format (`EventOps/Pipeline`). |
 
@@ -133,6 +133,24 @@ Every limit is a Terraform variable. The web app colors zones with the same valu
 
 Try it: `make burst` sends 1,000 readings/s for 2 minutes. The simulator retries only the throttled records, with exponential backoff, and reports them.
 
+## Read cache (web app API)
+
+The page refreshes every 5 seconds, and everyone watching an event asks for the same data. Without a cache, every refresh repeats the same DynamoDB reads: about 8 calls for an overview, 4 for an event.
+
+- The `dashboard-api` Lambda keeps each successful JSON response in memory for `api_cache_ttl_seconds` (default 5, `0` turns it off). Each key is the route plus its id, and the cache holds at most 256 entries.
+- It needs no new infrastructure and works in AWS Academy. ElastiCache or DAX would need the Lambda inside a VPC, plus endpoints, and they bill by the hour. An HTTP API has no built-in cache.
+- Each Lambda execution environment has its own cache, so with N environments a key misses up to N times per TTL. Data on the page is at most 5 s staler than the pipeline.
+- Each response reports what happened: `x-cache` (`HIT`, `MISS` or `BYPASS`), `x-dynamodb-calls` and `server-timing` (time spent in the handler). The same values go to CloudWatch as `ApiCacheHits`, `ApiCacheMisses`, `ApiDynamoDBCalls` and `ApiLatencyMs`.
+- A request with `Cache-Control: no-cache` skips the cache read. The load test uses this for its baseline.
+
+```bash
+make loadtest                       # 600 requests, 10 clients: no cache vs cache loaded
+make loadtest REQUESTS=2000 CONCURRENCY=20
+make loadtest API_URL=http://localhost:8080   # against make local-demo
+```
+
+The script prints both runs side by side: throughput, client latency p50/p95/p99, time inside the Lambda, hit ratio and DynamoDB calls. API Gateway throttles above `api_throttle_rate_limit` (100 req/s, burst 200), and the report counts those requests as 429s.
+
 ## Deploy
 
 Prerequisites: Terraform ≥ 1.11, AWS CLI v2, Python 3.12+, and AWS Academy Learner Lab credentials in `~/.aws/credentials` under the `[academy]` profile.
@@ -142,6 +160,7 @@ make whoami      # which account am I about to deploy to?
 make init        # creates/reuses s3://tfstate-<account>-<region> and runs terraform init
 make deploy      # ~10 minutes (the Redshift cluster is the slow part); Grafana installs itself ~3 minutes later
 make simulate    # 100 readings/s for 5 minutes (RATE=… DURATION=… to change)
+make loadtest    # dashboard API: no cache vs cache loaded
 make dashboard   # planner web app
 make grafana     # prints the URL and admin password; anonymous read-only access is on
 ```
@@ -204,7 +223,7 @@ make local-demo  # the whole pipeline on your laptop, web app on http://localhos
 ```
 
 - The Python tests run simulator records through every consumer:
-  - DynamoDB, SNS → SQS, the worker and the API
+  - DynamoDB, SNS → SQS, the worker and the API (including its read cache)
   - the Timestream writer
   - the SQL the Redshift loader generates
   - the invalid-record, cooldown and idempotency paths
@@ -237,6 +256,6 @@ Learner Lab stops EC2 instances when the session ends, but **not** Kinesis or Re
 │   └── static/index.html     planner web app
 ├── simulator/sensor_fleet.py Kinesis producer (sensor fleet)
 ├── grafana/                  dashboards (JSON) + their generator
-├── scripts/                  per-account state bootstrap, local demo
+├── scripts/                  per-account state bootstrap, local demo, API load test
 └── tests/                    moto pipeline tests, terraform test
 ```

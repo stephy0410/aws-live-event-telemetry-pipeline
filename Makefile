@@ -2,12 +2,15 @@ PROFILE  ?= academy
 REGION   ?= us-east-1
 RATE     ?= 100
 DURATION ?= 300
+REQUESTS ?= 600
+CONCURRENCY ?= 10
+API_URL  ?= $$(terraform output -raw dashboard_url)
 
 TFVARS := -var="profile=$(PROFILE)" -var="region=$(REGION)"
 VENV   := .venv
 PY     := $(VENV)/bin/python
 
-.PHONY: help whoami init plan deploy simulate burst dashboard grafana test local-demo dashboards fmt destroy
+.PHONY: help whoami init plan deploy simulate burst loadtest dashboard grafana test local-demo dashboards fmt destroy
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
@@ -29,6 +32,9 @@ simulate: $(VENV) ## Run the sensor fleet against Kinesis (RATE readings/s for D
 
 burst: ## Big ingestion burst: 1,000 readings/s for 2 minutes
 	$(MAKE) simulate RATE=1000 DURATION=120
+
+loadtest: $(VENV) ## Dashboard API without vs with its cache (REQUESTS, CONCURRENCY; API_URL=http://localhost:8080 for local-demo)
+	$(PY) scripts/api_load_test.py --url "$(API_URL)" --requests $(REQUESTS) --concurrency $(CONCURRENCY)
 
 dashboard: ## Open the planner-facing web app
 	open "$$(terraform output -raw dashboard_url)"

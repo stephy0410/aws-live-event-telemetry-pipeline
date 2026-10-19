@@ -140,10 +140,13 @@ class PipelineTest(unittest.TestCase):
             for m in batch:
                 self.sqs.delete_message(QueueUrl=self.queue_url, ReceiptHandle=m["ReceiptHandle"])
 
-    def api_get(self, route, **path):
-        response = self.api.handler({"routeKey": route, "pathParameters": path or None}, None)
+    def api_get(self, route, headers=None, **path):
+        response = self.api.handler({"routeKey": route, "pathParameters": path or None, "headers": headers or {}}, None)
         body = response["body"]
         return response["statusCode"], (json.loads(body) if response["headers"]["content-type"] == "application/json" else body)
+
+    def api_headers(self, route, headers=None, **path):
+        return self.api.handler({"routeKey": route, "pathParameters": path or None, "headers": headers or {}}, None)["headers"]
 
     # --- tests ---
 
@@ -301,6 +304,41 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(self.api_get("GET /api/events/{event_id}", event_id="evt-missing")[0], 404)
         self.assertEqual(self.api_get("GET /api/planners/{planner_id}/events", planner_id="a b")[0], 400)
         self.assertEqual(self.api_get("GET /nope")[0], 404)
+
+    def test_dashboard_cache_serves_hits_without_dynamodb(self):
+        self.processor.handler(kinesis_event([reading()]), None)
+        overview = "GET /api/overview"
+
+        first = self.api_headers(overview)
+        self.assertEqual(first["x-cache"], "MISS")
+        self.assertGreater(int(first["x-dynamodb-calls"]), 0)
+        self.assertIn("app;dur=", first["server-timing"])
+
+        second = self.api_headers(overview)
+        self.assertEqual((second["x-cache"], second["x-dynamodb-calls"]), ("HIT", "0"))
+
+        # Cache-Control: no-cache goes to DynamoDB even with a fresh entry (load-test baseline).
+        bypass = self.api_headers(overview, headers={"cache-control": "no-cache"})
+        self.assertEqual(bypass["x-cache"], "BYPASS")
+        self.assertGreater(int(bypass["x-dynamodb-calls"]), 0)
+
+        # Entries expire after the TTL; keys are per route and id; errors are never cached.
+        self.api._cache["GET /api/overview"] = (time.monotonic() - 1, "{}")
+        self.assertEqual(self.api_headers(overview)["x-cache"], "MISS")
+        event = "GET /api/events/{event_id}"
+        self.assertEqual(self.api_headers(event, event_id="evt-1")["x-cache"], "MISS")
+        self.assertEqual(self.api_headers(event, event_id="evt-1")["x-cache"], "HIT")
+        self.assertEqual(self.api_headers(event, event_id="evt-missing")["x-cache"], "MISS")
+        self.assertEqual(self.api_headers(event, event_id="evt-missing")["x-cache"], "MISS")
+
+    def test_dashboard_cache_can_be_turned_off(self):
+        os.environ["API_CACHE_TTL_SECONDS"] = "0"
+        try:
+            self.load_modules()
+            self.api_get("GET /api/overview")
+            self.assertEqual(self.api_headers("GET /api/overview")["x-cache"], "MISS")
+        finally:
+            del os.environ["API_CACHE_TTL_SECONDS"]
 
     def test_timeseries_writer_writes_every_reading(self):
         fleet = sensor_fleet.Fleet(events=6, seed=5, clock=0.0)

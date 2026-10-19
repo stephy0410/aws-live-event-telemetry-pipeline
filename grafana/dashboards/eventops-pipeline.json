@@ -113,9 +113,10 @@
             "fillOpacity": 10,
             "pointSize": 4,
             "showPoints": "never",
-            "spanNulls": true,
-            "lineInterpolation": "smooth",
-            "gradientMode": "opacity"
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "gradientMode": "opacity",
+            "insertNulls": 360000
           },
           "unit": "short"
         },
@@ -227,9 +228,10 @@
             "fillOpacity": 0,
             "pointSize": 4,
             "showPoints": "never",
-            "spanNulls": true,
-            "lineInterpolation": "smooth",
-            "gradientMode": "opacity"
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "gradientMode": "opacity",
+            "insertNulls": 360000
           },
           "unit": "ms"
         },
@@ -363,9 +365,10 @@
             "fillOpacity": 0,
             "pointSize": 4,
             "showPoints": "never",
-            "spanNulls": true,
-            "lineInterpolation": "smooth",
-            "gradientMode": "opacity"
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "gradientMode": "opacity",
+            "insertNulls": 360000
           },
           "unit": "short"
         },
@@ -477,9 +480,10 @@
             "fillOpacity": 0,
             "pointSize": 4,
             "showPoints": "never",
-            "spanNulls": true,
-            "lineInterpolation": "smooth",
-            "gradientMode": "opacity"
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "gradientMode": "opacity",
+            "insertNulls": 360000
           },
           "unit": "ms"
         },
@@ -635,9 +639,10 @@
             "fillOpacity": 0,
             "pointSize": 4,
             "showPoints": "never",
-            "spanNulls": true,
-            "lineInterpolation": "smooth",
-            "gradientMode": "opacity"
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "gradientMode": "opacity",
+            "insertNulls": 360000
           },
           "unit": "short"
         },
@@ -793,9 +798,10 @@
             "fillOpacity": 0,
             "pointSize": 4,
             "showPoints": "never",
-            "spanNulls": true,
-            "lineInterpolation": "smooth",
-            "gradientMode": "opacity"
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "gradientMode": "opacity",
+            "insertNulls": 360000
           },
           "unit": "short"
         },
@@ -907,9 +913,10 @@
             "fillOpacity": 0,
             "pointSize": 4,
             "showPoints": "never",
-            "spanNulls": true,
-            "lineInterpolation": "smooth",
-            "gradientMode": "opacity"
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "gradientMode": "opacity",
+            "insertNulls": 360000
           },
           "unit": "short"
         },
@@ -1021,9 +1028,10 @@
             "fillOpacity": 0,
             "pointSize": 4,
             "showPoints": "never",
-            "spanNulls": true,
-            "lineInterpolation": "smooth",
-            "gradientMode": "opacity"
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "gradientMode": "opacity",
+            "insertNulls": 360000
           },
           "unit": "short"
         },
@@ -1113,9 +1121,10 @@
             "fillOpacity": 10,
             "pointSize": 4,
             "showPoints": "never",
-            "spanNulls": true,
-            "lineInterpolation": "smooth",
-            "gradientMode": "opacity"
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "gradientMode": "opacity",
+            "insertNulls": 360000
           },
           "unit": "short"
         },

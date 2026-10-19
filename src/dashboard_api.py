@@ -6,6 +6,13 @@
   GET /api/events/{event_id}               zones, last 30 minutes of aggregates, alerts
 
 Every response is built from Query/GetItem calls on known keys (no table scans).
+
+Read cache: each Lambda execution environment keeps the JSON of every successful API
+response for API_CACHE_TTL_SECONDS (0 = off). The page polls every 5 s and every planner
+watching an event asks for the same data, so a hit skips the ~8 DynamoDB calls behind an
+overview. A request with `Cache-Control: no-cache` skips the cache read (scripts/api_load_test.py
+uses it for the "no cache" baseline). Responses say what happened: x-cache (HIT, MISS or
+BYPASS), x-dynamodb-calls and server-timing (time spent in the handler).
 """
 
 import json
@@ -13,6 +20,8 @@ import logging
 import os
 import pathlib
 import re
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
@@ -41,33 +50,106 @@ DASHBOARD_CONFIG = {
 PAGE = (pathlib.Path(__file__).parent / "static" / "index.html").read_text(encoding="utf-8")
 PAGE = PAGE.replace("{{DASHBOARD_CONFIG}}", json.dumps(DASHBOARD_CONFIG).replace("</", "<\\/"))
 
+CACHE_TTL_SECONDS = float(os.environ.get("API_CACHE_TTL_SECONDS", "5"))
+CACHE_MAX_ENTRIES = 256  # keys are validated ids, but a bound keeps memory flat regardless
+_cache = {}  # "<route>|<id>" -> (expires_at on time.monotonic(), JSON body)
+
 ddb = boto3.client("dynamodb")
 _pool = ThreadPoolExecutor(max_workers=8)
 
+# Counts every DynamoDB call (pages included) made while serving the current request.
+_ddb_calls = 0
+_ddb_calls_lock = threading.Lock()
+
+
+def _count_ddb_call(**_):
+    global _ddb_calls
+    with _ddb_calls_lock:
+        _ddb_calls += 1
+
+
+ddb.meta.events.register("before-call.dynamodb", _count_ddb_call)
+
 
 def handler(event, context):
+    global _ddb_calls
+    started = time.perf_counter()
     route = event.get("routeKey", "")
     params = event.get("pathParameters") or {}
+    if route == "GET /":
+        return _response(200, PAGE, "text/html; charset=utf-8")
+
+    _ddb_calls = 0
+    cache_key = "|".join([route, *params.values()])
+    bypass = "no-cache" in (event.get("headers") or {}).get("cache-control", "").lower()
+    body = None if bypass else _cache_get(cache_key)
+    if body is not None:
+        status, cache_state = 200, "HIT"
+    else:
+        status, payload = _api(route, params)
+        body = c.dumps(payload)
+        cache_state = "BYPASS" if bypass else "MISS"
+        if status == 200:
+            _cache_put(cache_key, body)
+
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    c.emit_metrics({
+        "ApiCacheHits": (int(cache_state == "HIT"), "Count"),
+        "ApiCacheMisses": (int(cache_state != "HIT"), "Count"),
+        "ApiDynamoDBCalls": (_ddb_calls, "Count"),
+        "ApiLatencyMs": (round(elapsed_ms, 2), "Milliseconds"),
+    })
+    response = _response(status, body, "application/json")
+    response["headers"].update({
+        "x-cache": cache_state,
+        "x-dynamodb-calls": str(_ddb_calls),
+        "server-timing": f"app;dur={elapsed_ms:.2f}",
+    })
+    return response
+
+
+def _api(route, params):
+    """-> (status, JSON-serializable body) for one API route."""
     try:
-        if route == "GET /":
-            return _response(200, PAGE, "text/html; charset=utf-8")
         if route == "GET /api/overview":
-            return _json(200, overview())
+            return 200, overview()
         if route == "GET /api/planners/{planner_id}/events":
             planner_id = params.get("planner_id", "")
             if not ID_PATTERN.match(planner_id):
-                return _json(400, {"error": "invalid planner_id"})
-            return _json(200, {"planner_id": planner_id, "events": planner_events(planner_id)})
+                return 400, {"error": "invalid planner_id"}
+            return 200, {"planner_id": planner_id, "events": planner_events(planner_id)}
         if route == "GET /api/events/{event_id}":
             event_id = params.get("event_id", "")
             if not ID_PATTERN.match(event_id):
-                return _json(400, {"error": "invalid event_id"})
+                return 400, {"error": "invalid event_id"}
             detail = event_detail(event_id)
-            return _json(200, detail) if detail else _json(404, {"error": "event not found"})
-        return _json(404, {"error": "not found"})
+            return (200, detail) if detail else (404, {"error": "event not found"})
+        return 404, {"error": "not found"}
     except Exception:
         log.exception("request failed: %s", route)
-        return _json(500, {"error": "internal error"})
+        return 500, {"error": "internal error"}
+
+
+# --- read cache ---
+
+def _cache_get(key):
+    entry = _cache.get(key)
+    if entry and entry[0] > time.monotonic():
+        return entry[1]
+    return None
+
+
+def _cache_put(key, body):
+    if CACHE_TTL_SECONDS <= 0:
+        return
+    now = time.monotonic()
+    if len(_cache) >= CACHE_MAX_ENTRIES:
+        for k in [k for k, (expires, _) in _cache.items() if expires <= now]:
+            del _cache[k]
+        while len(_cache) >= CACHE_MAX_ENTRIES:
+            del _cache[next(iter(_cache))]  # oldest insertion first
+    _cache.pop(key, None)  # re-insert so insertion order stays oldest-first
+    _cache[key] = (now + CACHE_TTL_SECONDS, body)
 
 
 # --- views ---
@@ -207,10 +289,6 @@ def _is_live(last_seen, now):
     if not last_seen:
         return False
     return (now - c.parse_ts(last_seen)).total_seconds() <= ACTIVE_SECONDS
-
-
-def _json(status, body):
-    return _response(status, c.dumps(body), "application/json")
 
 
 def _response(status, body, content_type):
